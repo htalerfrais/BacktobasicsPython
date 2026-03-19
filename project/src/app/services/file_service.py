@@ -1,7 +1,7 @@
 # this file is defining my usecase : orchestrating domain stuff, infra will call it
 # ne connait pas FastAPI ni Pydantic, c'est la couche API qui appelera les models Pydantics et FastAPI.
 
-from domain.models import ImageMetadata
+from src.domain.models import ImageMetadata
 from pathlib import Path
 import os
 
@@ -28,7 +28,7 @@ class FileService():
             size_bytes=size_bytes
         )
         
-        filepath = os.join(self.upload_dir, filename)
+        filepath = os.path.join(self.upload_dir, filename)
         with open(filepath, "wb") as f:
             f.write(data)
         

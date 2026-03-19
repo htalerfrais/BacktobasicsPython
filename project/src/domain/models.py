@@ -9,7 +9,7 @@ class ImageMetadata:
     
     def __post_init__(self) -> None :
         suffix = Path(self.filename).suffix.lower() # onstruit un objet de la classe Path, qui contient donc un suffix
-        if suffix not in [".jpg", ".jpeg", ".png"] :
+        if suffix not in [".jpg", ".jpeg", ".png", ".pdf"] :
             raise ValueError(f"format non supporté : {suffix}")
     
     

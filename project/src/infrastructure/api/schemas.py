@@ -3,7 +3,7 @@
 
 from pydantic import BaseModel, ConfigDict
 # ici on est à l'extérieur du domaine donc on a le droit de connaître l'intérieur (le domain/model)
-from domain.models import ImageMetadata
+from src.domain.models import ImageMetadata
 
 class ImageUploadResponse(BaseModel):
     file_id : int = None
