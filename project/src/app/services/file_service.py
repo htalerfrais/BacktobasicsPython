@@ -1,5 +1,5 @@
-# this file is defining my usecase : orchestrating domain stuff, infra will call it
-# ne connait pas FastAPI ni Pydantic, c'est la couche API qui appelera les models Pydantics et FastAPI.
+# this file is defining my usecase : orchestrating domain stuff
+# il appel : le domaine et les infras. Il se fait appeler par: les infra. 
 
 from src.domain.models import ImageMetadata
 from pathlib import Path
