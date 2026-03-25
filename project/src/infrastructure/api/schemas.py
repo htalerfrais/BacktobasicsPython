@@ -2,11 +2,13 @@
 # ce modèle sera renvoyé par FastAPI
 
 from pydantic import BaseModel, ConfigDict
+from typing import Optional
+
 # ici on est à l'extérieur du domaine donc on a le droit de connaître l'intérieur (le domain/model)
 from src.domain.models import ImageMetadata
 
 class ImageUploadResponse(BaseModel):
-    file_id : int = None
+    file_id : Optional[int] = None
     path : str = None
     
     filename : str

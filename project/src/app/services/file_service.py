@@ -22,13 +22,15 @@ class FileService():
         
         size_bytes = len(data)
         
+        filepath = os.path.join(self.upload_dir, filename)
+        
         image_metadata = ImageMetadata(
             filename=filename,
             content_type=content_type,
-            size_bytes=size_bytes
+            size_bytes=size_bytes,
+            path=filepath
         )
         
-        filepath = os.path.join(self.upload_dir, filename)
         with open(filepath, "wb") as f:
             f.write(data)
         
