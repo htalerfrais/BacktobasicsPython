@@ -8,6 +8,7 @@ import os
 class FileService():
     def __init__(self, upload_dir: str):
         self.upload_dir = upload_dir
+    
         
     def save_file(self, data: bytes, filename: str) -> ImageMetadata:
         # 1. créer tous les champs / attributs nécéssaires à crer objet ImageMetadata
@@ -15,7 +16,7 @@ class FileService():
         
         ext = Path(filename).suffix.lower()
         match ext:
-            case ".jpeg" | ".jpg" | ".png":
+            case ".jpeg" | ".jpg" | ".png" | ".webp":
                 content_type = "image"
             case "pdf":
                 content_type = "pdf"
