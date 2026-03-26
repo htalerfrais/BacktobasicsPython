@@ -1,0 +1,43 @@
+[project]
+name = "backtobasics"
+version = "0.1.0"
+description = "API written without AI that aims at removing background of images"
+authors = [
+    {name = "htalerfrais",email = "hector.taler00@gmail.com"}
+]
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "pydantic (>=2.12.5,<3.0.0)",
+    "fastapi (>=0.135.2,<0.136.0)",
+    "uvicorn (>=0.42.0,<0.43.0)",
+    "numpy (>=2.4.3,<3.0.0)",
+    "torch (>=2.11.0,<3.0.0)",
+    "torchvision (>=0.26.0,<0.27.0)",
+    "httpx (>=0.28.1,<0.29.0)",
+    "python-multipart (>=0.0.22,<0.0.23)"
+]
+
+
+[tool.poetry]
+packages = [{include = "src", from = "project"}]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.poetry.dependencies]
+torch = {source = "pytorch-src"}
+torchvision = {source = "pytorch-src"}
+
+
+[[tool.poetry.source]]
+name = "pytorch-src"
+url = "https://download.pytorch.org/whl/cpu" # Change 'cpu' par 'cu118' ou 'cu121' si tu as un GPU
+priority = "explicit"
+
+[dependency-groups]
+dev = [
+    "pytest (>=9.0.2,<10.0.0)"
+]

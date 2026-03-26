@@ -1,0 +1,1 @@
+For development testing, you should run everything from the project/ folder
