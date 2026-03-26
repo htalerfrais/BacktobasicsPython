@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, Depends, File
 from src.app.services.file_service import FileService
 from src.app.services.image_service import ImageProcessorService
-from src.infrastructure.processors import DummyProcessor, WhiteProcessor, CompositeProcessor
+from src.infrastructure.processors import DummyProcessor, WhiteProcessor, CompositeProcessor, PyTorchBackgroundRemover
 from src.infrastructure.api.schemas import ImageUploadResponse
 
 # tout comme on crée une instance de app dans main.py, 
@@ -15,7 +15,7 @@ def get_file_service() -> FileService:
 
 def get_image_processor_service() -> ImageProcessorService:
     # plus tard c'est ici qu'on mettra des conditions pour sélectionner quel processor on veut activer.
-    processor = CompositeProcessor([DummyProcessor(), WhiteProcessor()])
+    processor = PyTorchBackgroundRemover()
     return ImageProcessorService(image_processor=processor)
 
 

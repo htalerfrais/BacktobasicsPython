@@ -3,7 +3,7 @@ from src.infrastructure.processors import DummyProcessor, WhiteProcessor
 
 class ImageProcessorService():
     def __init__(self, image_processor : ImageProcessor):
-        self.image_processor = image_processor
+        self.image_processor = image_processor # can be a CompositeProcessor (so multiple ones)
         
     def execute_processing(self, image_bytes : bytes) -> bytes:
         return self.image_processor.process(image_bytes)
