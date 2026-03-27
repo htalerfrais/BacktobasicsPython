@@ -47,7 +47,7 @@ class PyTorchBackgroundRemover(ImageProcessor):
     def __init__(self, device : str = "cpu"):
         self.device = torch.device(device)
         weights = DeepLabV3_ResNet50_Weights.DEFAULT
-        self.model = deeplabv3_resnet50.eval(weights)
+        self.model = deeplabv3_resnet50(weights=weights)
         self.model.eval()
         self.model.to(self.device)
         # récupérer la normalisation associée aux 
