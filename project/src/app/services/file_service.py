@@ -14,20 +14,16 @@ class FileService():
         # 1. créer tous les champs / attributs nécéssaires à crer objet ImageMetadata
         # 2. sauver le fichier sur le disque.
         
-        ext = Path(filename).suffix.lower()
-        match ext:
-            case ".jpeg" | ".jpg" | ".png" | ".webp":
-                content_type = "image"
-            case "pdf":
-                content_type = "pdf"
-        
+        suffix = Path(filename).suffix.lower()
+        file_extension = suffix.lstrip(".")
+
         size_bytes = len(data)
-        
+
         filepath = os.path.join(self.upload_dir, filename)
-        
+
         image_metadata = ImageMetadata(
             filename=filename,
-            content_type=content_type,
+            file_extension=file_extension,
             size_bytes=size_bytes,
             path=filepath
         )

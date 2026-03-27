@@ -13,7 +13,7 @@ class ImageUploadResponse(BaseModel):
     
     filename : str
     size_bytes : int
-    content_type : str
+    file_extension : str
     
     # pour que ImageUploadResponse model puisse être généré à partir d'un objet au lieu d'un JSON
     # dans domain, le model dataclass de ImageMetadata va être généré,
@@ -22,6 +22,6 @@ class ImageUploadResponse(BaseModel):
 
 
 if __name__ == "__main__" : 
-    image_metadata = ImageMetadata(filename="testblub.jpg", content_type='image', size_bytes=3000)
+    image_metadata = ImageMetadata(filename="testblub.jpg", file_extension="jpg", size_bytes=3000)
     response = ImageUploadResponse.model_validate(image_metadata)
     print(response.model_dump())

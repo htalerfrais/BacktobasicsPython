@@ -3,9 +3,16 @@ from pathlib import Path
 from typing import Optional
 
 @dataclass(frozen=True)
+class ProcessedImage:
+    """Sortie d'un ImageProcessor : octets encodés et extension (sans point), ex. png."""
+
+    data: bytes
+    file_extension: str
+
+@dataclass(frozen=True)
 class ImageMetadata:
     filename: str
-    content_type: str
+    file_extension: str
     size_bytes: int
     path : str
     file_id : Optional[int] = None
@@ -17,7 +24,7 @@ class ImageMetadata:
     
     
 if __name__ == "__main__":
-    image = ImageMetadata(filename="strange.jpg", content_type="image", size_bytes=34)
+    image = ImageMetadata(filename="strange.jpg", file_extension="jpg", size_bytes=34)
     print(image)
     
 

@@ -2,7 +2,7 @@ from src.domain.interfaces import ImageProcessor
 from src.utils.decorators import time_logger
 
 from typing import List, Tuple
-from torchvision.models import deeplabv3_resnet50, DeepLabV3_ResNet50_Weights 
+from torchvision.models.segmentation import deeplabv3_resnet50, DeepLabV3_ResNet50_Weights 
 import torch 
 from PIL import Image
 import numpy as np
@@ -54,7 +54,6 @@ class PyTorchBackgroundRemover(ImageProcessor):
         # données d'entrainement ayant données ces poids
         self.preprocess = weights.transforms()
     
-    
     def _preprocess(self, image_bytes : bytes) -> Tuple[torch.tensor, Image] :
         # bytes to tensors
         # normalisation and resize ... with transforms of pytorch
@@ -64,17 +63,14 @@ class PyTorchBackgroundRemover(ImageProcessor):
         tensor = tensor.unsqueeze(0) # ajouter channel de batch [batchs , C, H, W] => [1 , C, H, W] pour entrée model
         return tensor.to(self.device), image
     
-    
     def _inference(self, tensor : torch.tensor) -> torch.tensor:
         # tensors to tensors
         with torch.no_grad():
             output = self.model(tensor)["out"]  # dimensions (21 classes) [1, 21, H, W]
         return output
     
-    
     def _postprocess(self, tensor, original_image):
         # tensors to bytes
-        
         orig_size = (original_image.height, original_image.width)
         # redimensionner logits en sortie de model pour fit avec taille originale de l'image
         resized_logits = F.interpolate(tensor, size=orig_size, mode='bilinear', align_corners=False)
@@ -94,7 +90,6 @@ class PyTorchBackgroundRemover(ImageProcessor):
         result.save(buffer, format="PNG")  # comme with open("image.png", "wb") mais dans le fichier buffer hors du disque
         return buffer.getvalue()
       
-    
     def process(self, image_bytes : bytes) -> bytes:
         preprocessed, original_image = self._preprocess(image_bytes)
         inferenced = self._inference(preprocessed)

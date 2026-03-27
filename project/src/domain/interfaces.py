@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 
+from src.domain.models import ProcessedImage
+
 class ImageProcessor(ABC):
     # contrat pour tout algorithme de traitement d'image dans notre app
     # cette classe va servir de support au strategy pattern.

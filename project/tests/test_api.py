@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 from src.main import app
 import os
@@ -32,7 +34,8 @@ def test_image_process():
 
     # nom du fichier retourné commence par "proc_" et contient file_name 
     assert data["filename"].startswith("proc_")
-    assert file_name in data["filename"]
+    stem = Path(file_name).stem
+    assert data["filename"] == f"proc_{stem}.{data['file_extension']}"
 
     # Nettoyage du fichier enregistré pour le test
     if os.path.exists(data["path"]):
