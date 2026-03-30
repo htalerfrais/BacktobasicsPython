@@ -55,7 +55,8 @@ class PyTorchBackgroundRemover(ImageProcessor):
     def __init__(self, device : str = "cpu"):
         self.device = torch.device(device)
         weights = DeepLabV3_ResNet50_Weights.DEFAULT
-        self.model = deeplabv3_resnet50(weights=weights)
+        self.model = deeplabv3_resnet50(weights=weights) 
+        # problématique pour l'instant car ca fait que le model sera chargé à chaque appel de l'API !! 
         self.model.eval()
         self.model.to(self.device)
         # récupérer la normalisation associée aux 
@@ -102,5 +103,5 @@ class PyTorchBackgroundRemover(ImageProcessor):
         preprocessed, original_image = self._preprocess(image_bytes)
         inferenced = self._inference(preprocessed)
         postprocessed = self._postprocess(inferenced, original_image)
-        output = ProcessedImage(data=postprocessed, file_extension='PNG')
+        output = ProcessedImage(data=postprocessed, file_extension='png')
         return output

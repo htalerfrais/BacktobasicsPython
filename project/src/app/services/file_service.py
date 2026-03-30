@@ -12,10 +12,6 @@ class FileService():
         
     def save_file(self, data: bytes, filename: str) -> ImageMetadata:
         path_obj = Path(filename)
-        # recuperer le stem
-        name_without_ext = path_obj.stem
-        
-        # recuperer l'extension
         file_extension = path_obj.suffix.lower().lstrip(".")
 
         size_bytes = len(data)
@@ -23,7 +19,7 @@ class FileService():
         filepath = self.upload_dir / filename
 
         image_metadata = ImageMetadata(
-            filename=name_without_ext,
+            filename=path_obj.name,
             file_extension=file_extension,
             size_bytes=size_bytes,
             path=str(filepath)

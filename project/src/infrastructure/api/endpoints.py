@@ -1,10 +1,11 @@
 from fastapi import APIRouter, UploadFile, Depends, File
+from pathlib import Path 
+
 from src.app.services.file_service import FileService
 from src.app.services.image_service import ImageProcessorService
 from src.infrastructure.processors import DummyProcessor, WhiteProcessor, CompositeProcessor, PyTorchBackgroundRemover
 from src.infrastructure.api.schemas import ImageUploadResponse
 
-import Path
 
 # tout comme on crée une instance de app dans main.py, 
 # ici on crée un router
