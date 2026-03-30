@@ -4,6 +4,8 @@ from src.app.services.image_service import ImageProcessorService
 from src.infrastructure.processors import DummyProcessor, WhiteProcessor, CompositeProcessor, PyTorchBackgroundRemover
 from src.infrastructure.api.schemas import ImageUploadResponse
 
+import Path
+
 # tout comme on crée une instance de app dans main.py, 
 # ici on crée un router
 router = APIRouter(prefix="/images", tags=["Image Processing"])
@@ -16,6 +18,7 @@ def get_file_service() -> FileService:
 def get_image_processor_service() -> ImageProcessorService:
     # plus tard c'est ici qu'on mettra des conditions pour sélectionner quel processor on veut activer.
     processor = PyTorchBackgroundRemover()
+    # probleme : a chaque appel de l'API on vient charger un nouveau model
     return ImageProcessorService(image_processor=processor)
 
 
@@ -35,7 +38,8 @@ async def process_image(file: UploadFile = File(...) ,
                         file_service : FileService = Depends(get_file_service)
                         ):
     data = await file.read() # lecture
+    file_stem = Path(file.filename).stem
     processed_data = process_service.execute_processing(data) # Traitement de l'image
-    image_metadata = file_service.save_file(data=processed_data.data, filename=f"proc_{file.filename}.{processed_data.file_extension}") # sauvegarde
+    image_metadata = file_service.save_file(data=processed_data.data, filename=f"proc_{file_stem}.{processed_data.file_extension}") # sauvegarde
     
     return image_metadata
