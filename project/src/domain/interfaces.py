@@ -10,5 +10,5 @@ class ImageProcessor(ABC):
     #   qui pourront être utilisés par le service pour créer le bon ImageProcessor.
     
     @abstractmethod
-    def process(self, image_bytes : bytes) -> bytes:
+    def process(self, image_bytes : bytes) -> ProcessedImage:
         pass

@@ -1,4 +1,4 @@
-from src.domain.interfaces import ImageProcessor
+from src.domain.interfaces import ImageProcessor, ProcessedImage
 from src.utils.decorators import time_logger
 
 from typing import List, Tuple
@@ -12,16 +12,24 @@ import torch.nn.functional as F
 
 class DummyProcessor(ImageProcessor):
     @time_logger
-    def process(self, image_bytes : bytes) -> bytes : 
+    def process(self, image_bytes : bytes) -> ProcessedImage : 
         print("using dummy processor pretending to process")
-        return image_bytes
+        processed_image = ProcessedImage(
+            data = image_bytes,
+            file_extension = 'png'
+        )
+        return processed_image
     
         
 class WhiteProcessor(ImageProcessor):
     @time_logger
-    def process(self, image_bytes : bytes) -> bytes:
+    def process(self, image_bytes : bytes) -> ProcessedImage:
         print("using whiteprocessor")
-        return image_bytes
+        processed_image = ProcessedImage(
+            data = image_bytes,
+            file_extension = 'png'
+        )
+        return processed_image
 
 
 class CompositeProcessor(ImageProcessor):
@@ -36,11 +44,11 @@ class CompositeProcessor(ImageProcessor):
         self._processors = processors
         
     @time_logger
-    def process(self, image_bytes : bytes) -> bytes:
-        output = image_bytes
+    def process(self, image_bytes : bytes) -> ProcessedImage:
+        output = ProcessedImage(data=image_bytes, file_extension='none')
         for processor in self._processors:
-            output = processor.process(output)
-        return output 
+            output = processor.process(output.data)
+        return output
     
 
 class PyTorchBackgroundRemover(ImageProcessor):
@@ -54,7 +62,7 @@ class PyTorchBackgroundRemover(ImageProcessor):
         # données d'entrainement ayant données ces poids
         self.preprocess = weights.transforms()
     
-    def _preprocess(self, image_bytes : bytes) -> Tuple[torch.tensor, Image] :
+    def _preprocess(self, image_bytes : bytes) -> Tuple[torch.Tensor, Image] :
         # bytes to tensors
         # normalisation and resize ... with transforms of pytorch
         # il peut y avoir des problèmes ici si mon image d'entrée est en PNG, car PNG est en RGBA avec transparence
@@ -63,7 +71,7 @@ class PyTorchBackgroundRemover(ImageProcessor):
         tensor = tensor.unsqueeze(0) # ajouter channel de batch [batchs , C, H, W] => [1 , C, H, W] pour entrée model
         return tensor.to(self.device), image
     
-    def _inference(self, tensor : torch.tensor) -> torch.tensor:
+    def _inference(self, tensor : torch.Tensor) -> torch.Tensor:
         # tensors to tensors
         with torch.no_grad():
             output = self.model(tensor)["out"]  # dimensions (21 classes) [1, 21, H, W]
@@ -90,8 +98,9 @@ class PyTorchBackgroundRemover(ImageProcessor):
         result.save(buffer, format="PNG")  # comme with open("image.png", "wb") mais dans le fichier buffer hors du disque
         return buffer.getvalue()
       
-    def process(self, image_bytes : bytes) -> bytes:
+    def process(self, image_bytes : bytes) -> ProcessedImage:
         preprocessed, original_image = self._preprocess(image_bytes)
         inferenced = self._inference(preprocessed)
         postprocessed = self._postprocess(inferenced, original_image)
-        return postprocessed
+        output = ProcessedImage(data=postprocessed, file_extension='PNG')
+        return output

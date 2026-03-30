@@ -36,6 +36,6 @@ async def process_image(file: UploadFile = File(...) ,
                         ):
     data = await file.read() # lecture
     processed_data = process_service.execute_processing(data) # Traitement de l'image
-    image_metadata = file_service.save_file(data=processed_data, filename=f"proc_{file.filename}") # sauvegarde
+    image_metadata = file_service.save_file(data=processed_data.data, filename=f"proc_{file.filename}.{processed_data.file_extension}") # sauvegarde
     
     return image_metadata

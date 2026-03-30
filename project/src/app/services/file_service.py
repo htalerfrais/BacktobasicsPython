@@ -3,32 +3,33 @@
 
 from src.domain.models import ImageMetadata
 from pathlib import Path
-import os
+
 
 class FileService():
     def __init__(self, upload_dir: str):
-        self.upload_dir = upload_dir
-    
+        self.upload_dir = Path(upload_dir)
+        self.upload_dir.mkdir(parents=True, exist_ok=True)
         
     def save_file(self, data: bytes, filename: str) -> ImageMetadata:
-        # 1. créer tous les champs / attributs nécéssaires à crer objet ImageMetadata
-        # 2. sauver le fichier sur le disque.
+        path_obj = Path(filename)
+        # recuperer le stem
+        name_without_ext = path_obj.stem
         
-        suffix = Path(filename).suffix.lower()
-        file_extension = suffix.lstrip(".")
+        # recuperer l'extension
+        file_extension = path_obj.suffix.lower().lstrip(".")
 
         size_bytes = len(data)
 
-        filepath = os.path.join(self.upload_dir, filename)
+        filepath = self.upload_dir / filename
 
         image_metadata = ImageMetadata(
-            filename=filename,
+            filename=name_without_ext,
             file_extension=file_extension,
             size_bytes=size_bytes,
-            path=filepath
+            path=str(filepath)
         )
         
-        with open(filepath, "wb") as f:
-            f.write(data)
+        # Utilisation de pathlib pour écrire directement (plus concis que open())
+        filepath.write_bytes(data)
         
         return image_metadata

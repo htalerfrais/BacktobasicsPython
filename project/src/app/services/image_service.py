@@ -1,11 +1,11 @@
-from src.domain.interfaces import ImageProcessor
-from src.infrastructure.processors import DummyProcessor, WhiteProcessor
+from src.domain.interfaces import ImageProcessor, ProcessedImage
+from src.infrastructure.processors import DummyProcessor
 
 class ImageProcessorService():
     def __init__(self, image_processor : ImageProcessor):
         self.image_processor = image_processor # can be a CompositeProcessor (so multiple ones)
         
-    def execute_processing(self, image_bytes : bytes) -> bytes:
+    def execute_processing(self, image_bytes : bytes) -> ProcessedImage:
         return self.image_processor.process(image_bytes)
         
 

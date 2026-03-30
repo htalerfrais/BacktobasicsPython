@@ -4,8 +4,7 @@ from typing import Optional
 
 @dataclass(frozen=True)
 class ProcessedImage:
-    """Sortie d'un ImageProcessor : octets encodés et extension (sans point), ex. png."""
-
+    # Sortie d'un ImageProcessor : octets encodés et extension (sans point)
     data: bytes
     file_extension: str
 
