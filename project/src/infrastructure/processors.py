@@ -52,16 +52,28 @@ class CompositeProcessor(ImageProcessor):
     
 
 class PyTorchBackgroundRemover(ImageProcessor):
+    _instance = None # variable niveau classe commune auw instances
+    
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            #l'instance n'existe pas on peut la créer
+            # super(PyTorchBackgroundRemover, cls) différent de PyTorchBackgroundRemover.
+            # super(PyTorchBackgroundRemover) est un genre de classe mère qui sait comment fabriquer l'objet en mémoire. 
+            cls._instance = super(PyTorchBackgroundRemover, cls).__new__(cls)
+            cls._instance._model_loaded = False # savoir si on doit charger le model dans le init, ici oui car l'instance est toute nouvelle.
+            
+        return cls._instance # soit l'instance préexistante soit la nouvelle
+    
     def __init__(self, device : str = "cpu"):
-        self.device = torch.device(device)
-        weights = DeepLabV3_ResNet50_Weights.DEFAULT
-        self.model = deeplabv3_resnet50(weights=weights) 
-        # problématique pour l'instant car ca fait que le model sera chargé à chaque appel de l'API !! 
-        self.model.eval()
-        self.model.to(self.device)
-        # récupérer la normalisation associée aux 
-        # données d'entrainement ayant données ces poids
-        self.preprocess = weights.transforms()
+        # checker si le modèle a déjà été chargé sur l'instance unique grace au flag
+        if not self._model_loaded:
+            self.device = torch.device(device)
+            weights = DeepLabV3_ResNet50_Weights.DEFAULT
+            self.model = deeplabv3_resnet50(weights=weights) 
+            self.model.eval()
+            self.model.to(self.device)
+            self.preprocess = weights.transforms()
+            self._model_loaded = True
     
     def _preprocess(self, image_bytes : bytes) -> Tuple[torch.Tensor, Image] :
         # bytes to tensors
