@@ -19,7 +19,7 @@ def get_file_service() -> FileService:
 def get_image_processor_service() -> ImageProcessorService:
     # plus tard c'est ici qu'on mettra des conditions pour sélectionner quel processor on veut activer.
     processor = PyTorchBackgroundRemover()
-    # probleme : a chaque appel de l'API on vient charger un nouveau model
+    # ici le processor pointera vers l'instance unique singleton pré yield par le FastAPI lifespan
     return ImageProcessorService(image_processor=processor)
 
 
