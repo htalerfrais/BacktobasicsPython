@@ -1,32 +1,32 @@
 import io
 from locust import HttpUser, task, between
 
+# Crée une vraie image PNG minimale en mémoire
+def create_test_image():
+    from PIL import Image
+    img = Image.new('RGB', (100, 100), color='red')
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    buf.seek(0)
+    return buf
 
-FAKE_IMAGE = io.BytesIO(b"\xff\xd8\xff" + b"\x00" * 1024)  # JPEG header 
-
-def _fresh_image():
-    # a BytesIO file object has internal cursor and after it has been written, 
-    # it is at the end of the file. 
-    # So here we reset the cursor to read it again.
-    FAKE_IMAGE.seek(0)
-    return FAKE_IMAGE
-
-# using HttpUser locust parent class to mock a user
 class ImageAPIUser(HttpUser):
     wait_time = between(1, 3)
 
     @task(2)
     def upload_image(self):
+        img = create_test_image()
         self.client.post(
             "/images/upload",
-            files={"file": ("test.jpg", _fresh_image(), "image/jpeg")},
+            files={"file": ("test.png", img, "image/png")},
         )
 
     @task(1)
     def process_image(self):
+        img = create_test_image()
         response = self.client.post(
             "/images/process",
-            files={"file": ("test.jpg", _fresh_image(), "image/jpeg")},
+            files={"file": ("test.png", img, "image/png")},
         )
         if response.status_code == 200:
             task_id = response.json().get("task_id")
