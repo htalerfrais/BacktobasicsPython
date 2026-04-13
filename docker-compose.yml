@@ -28,3 +28,14 @@ services:
       - ./uploads:/app/uploads  # bind mount: un seul dossier uploads à la racine du repo
     depends_on:
       - redis
+
+  flower:
+    build: .
+    env_file:
+      - .env
+    command: celery -A src.infrastructure.celery.celery_app flower --port=5555
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - worker

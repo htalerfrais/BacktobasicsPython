@@ -1,2 +1,5 @@
 For development testing, you should run everything from the project/ folder
 run the app with uvicorn using : uvicorn src.main:app --host 0.0.0.0 --port 5000
+
+Stress test on the API from within the container : 
+locust -f project/tests/load/locustfile.py --host=http://localhost:5000
