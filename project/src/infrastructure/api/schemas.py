@@ -4,7 +4,6 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
-# ici on est à l'extérieur du domaine donc on a le droit de connaître l'intérieur (le domain/model)
 from src.domain.models import ImageMetadata
 
 class ImageUploadResponse(BaseModel):
@@ -15,10 +14,20 @@ class ImageUploadResponse(BaseModel):
     size_bytes : int
     file_extension : str
     
-    # pour que ImageUploadResponse model puisse être généré à partir d'un objet au lieu d'un JSON
-    # dans domain, le model dataclass de ImageMetadata va être généré,
-    # puis à partir de celui ci on générera un model pydantic pour l'API.
     model_config = ConfigDict(from_attributes=True)
+
+
+class TaskResponse(BaseModel):
+    """Retourné immédiatement par POST /process — la tâche est en file d'attente."""
+    task_id: str
+    status: str
+
+
+class TaskStatusResponse(BaseModel):
+    """Retourné par GET /process/{task_id} — inclut le résultat quand disponible."""
+    task_id: str
+    status: str
+    result: Optional[ImageUploadResponse] = None
 
 
 if __name__ == "__main__" : 

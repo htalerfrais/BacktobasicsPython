@@ -111,6 +111,7 @@ class PyTorchBackgroundRemover(ImageProcessor):
         result.save(buffer, format="PNG")  # comme with open("image.png", "wb") mais dans le fichier buffer hors du disque
         return buffer.getvalue()
       
+    @time_logger
     def process(self, image_bytes : bytes) -> ProcessedImage:
         preprocessed, original_image = self._preprocess(image_bytes)
         inferenced = self._inference(preprocessed)

@@ -6,7 +6,7 @@ from typing import Optional
 class ProcessedImage:
     # Sortie d'un ImageProcessor : octets encodés et extension (sans point)
     data: bytes
-    file_extension: str
+    file_extension: str # (extension sans le point)
 
 @dataclass(frozen=True)
 class ImageMetadata:
