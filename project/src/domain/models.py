@@ -2,11 +2,13 @@ from dataclasses import dataclass
 from pathlib import Path 
 from typing import Optional
 
+
 @dataclass(frozen=True)
 class ProcessedImage:
     # Sortie d'un ImageProcessor : octets encodés et extension (sans point)
     data: bytes
-    file_extension: str # (extension sans le point)
+    file_extension: str
+
 
 @dataclass(frozen=True)
 class ImageMetadata:

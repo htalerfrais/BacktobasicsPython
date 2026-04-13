@@ -14,7 +14,7 @@ services:
       - "5000:5000"
     volumes:
       - ./project:/app/project
-      - uploads_data:/app/uploads  # volume partagé avec worker 
+      - ./uploads:/app/uploads  # bind mount: un seul dossier uploads à la racine du repo
     depends_on:
       - redis
 
@@ -25,9 +25,6 @@ services:
     command: celery -A src.infrastructure.celery.celery_app worker --loglevel=info
     volumes:
       - ./project:/app/project
-      - uploads_data:/app/uploads  #  volume partagé avec l'api
+      - ./uploads:/app/uploads  # bind mount: un seul dossier uploads à la racine du repo
     depends_on:
       - redis
-
-volumes:
-  uploads_data:  # volume nommé Docker persistant

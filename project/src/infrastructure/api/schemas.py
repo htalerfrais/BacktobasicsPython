@@ -9,22 +9,20 @@ from src.domain.models import ImageMetadata
 class ImageUploadResponse(BaseModel):
     file_id : Optional[int] = None
     path : str = None
-    
     filename : str
     size_bytes : int
     file_extension : str
-    
     model_config = ConfigDict(from_attributes=True)
 
 
 class TaskResponse(BaseModel):
-    """Retourné immédiatement par POST /process — la tâche est en file d'attente."""
+    """Retourné immédiatement par POST /process"""
     task_id: str
     status: str
 
 
 class TaskStatusResponse(BaseModel):
-    """Retourné par GET /process/{task_id} — inclut le résultat quand disponible."""
+    """Retourné par GET /process/{task_id}"""
     task_id: str
     status: str
     result: Optional[ImageUploadResponse] = None

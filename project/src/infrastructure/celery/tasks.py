@@ -8,18 +8,12 @@ from src.infrastructure.processors import PyTorchBackgroundRemover
 
 @app.task(bind=True)
 def process_image_task(self, input_path: str, original_filename: str) -> dict:
-    """
-    Inbound adapter Celery — équivalent du endpoint HTTP pour le canal async.
-    Responsabilités :
-      1. Lire les bytes depuis le volume partagé (input_path)
-      2. Déléguer au cas d'usage application (ImageProcessorService)
-      3. Sauvegarder le résultat via FileService
-      4. Retourner les métadonnées sérialisables pour le backend Redis
-    """
+    # avant, cette tâche était faite dans le endpoint HTTP directement.
+    # maintenant, elle est faite dans le worker Celery via Redis qui envoie le message.
+    # donc plus besoin non plus de factory.
     image_bytes = Path(input_path).read_bytes()
 
-    # Couche application — le Singleton garantit que le modèle n'est chargé
-    # qu'une seule fois par process worker, pas à chaque tâche.
+    # Singleton : modèle n'est chargé qu'une seule fois par process worker
     processor = PyTorchBackgroundRemover(device="cpu")
     service = ImageProcessorService(image_processor=processor)
     result = service.execute_processing(image_bytes)

@@ -8,7 +8,7 @@
 .eggs/
 
 # Uploads & data générés à runtime
-project/uploads/
+uploads/
 project/app.log
 app.log
 

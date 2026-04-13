@@ -9,7 +9,8 @@ from src.infrastructure.celery.tasks import process_image_task
 
 router = APIRouter(prefix="/images", tags=["Image Processing"])
 
-
+# factory functions 
+# instancier dépendances via Depends() de FastAPI.
 def get_file_service() -> FileService:
     return FileService(upload_dir="uploads/images")
 
@@ -25,21 +26,16 @@ async def upload_file(file: UploadFile = File(...),
 @router.post("/process", response_model=TaskResponse)
 async def process_image(file: UploadFile = File(...),
                         file_service: FileService = Depends(get_file_service)):
-    """
-    Inbound adapter HTTP — enfile la tâche de traitement et retourne immédiatement.
-    Le traitement réel est délégué au worker Celery via Redis.
-    """
     data = await file.read()
-    # On sauvegarde d'abord le fichier dans le volume partagé api/worker
+    # On sauvegarde d'abord le fichier dans le volume partagé api/worker !!!! IMPORTANT
     metadata = file_service.save_file(data=data, filename=file.filename)
-    # On enfile la tâche : le worker lira le fichier depuis le volume
+
     task = process_image_task.delay(metadata.path, file.filename)
     return TaskResponse(task_id=task.id, status="PENDING")
 
 
 @router.get("/process/{task_id}", response_model=TaskStatusResponse)
 async def get_process_status(task_id: str):
-    """Poll le statut d'une tâche de traitement."""
     task = AsyncResult(task_id)
 
     if task.failed():
