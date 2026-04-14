@@ -2,6 +2,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: redis-server --save "" --appendonly no
     ports:
       - "6379:6379"
 
@@ -22,7 +23,8 @@ services:
     build: .
     env_file:
       - .env
-    command: celery -A src.infrastructure.celery.celery_app worker --loglevel=info
+    # -E pour publier evenements
+    command: celery -A src.infrastructure.celery.celery_app worker --loglevel=info -E
     volumes:
       - ./project:/app/project
       - ./uploads:/app/uploads  # bind mount: un seul dossier uploads à la racine du repo
@@ -33,7 +35,7 @@ services:
     build: .
     env_file:
       - .env
-    command: celery -A src.infrastructure.celery.celery_app flower --port=5555
+    command: celery -A src.infrastructure.celery.celery_app flower --port=5555 --db= --persistent=False
     ports:
       - "5555:5555"
     depends_on:
