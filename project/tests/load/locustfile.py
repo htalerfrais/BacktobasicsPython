@@ -13,8 +13,8 @@ def create_test_image():
     return buf
 
 class ImageAPIUser(HttpUser):
-    wait_time = constant(1)
-        
+    wait_time = constant(10)
+
     @task
     def process_image(self):
         img = create_test_image()

@@ -1,0 +1,82 @@
+---
+description: Contexte permanent du projet BacktobasicsPython — background removal service
+alwaysApply: true
+---
+
+# BacktobasicsPython — Contexte Agent
+
+## Projet
+Background removal as a service : upload image → Celery worker → PyTorch (DeepLabV3) → RGBA PNG sans fond.
+**Objectif dual : apprendre ET construire un MVP présentable.**
+Source de vérité complète : `PROJECT_CONTEXT.md` à la racine.
+
+## Stack
+FastAPI + Uvicorn | PyTorch DeepLabV3 (CPU) | Celery + Redis | Docker Compose | Poetry | Pytest | Locust
+
+## Architecture hexagonale
+```
+project/src/
+├── main.py                            # Entrypoint
+├── app/services/                      # file_service.py, image_service.py
+├── domain/                            # interfaces.py (ABCs), models.py (dataclasses)
+├── infrastructure/
+│   ├── api/endpoints.py               # POST /images/upload, POST+GET /images/process
+│   ├── celery/tasks.py                # process_image_task (charge ML dans le worker)
+│   └── processors.py                  # PyTorchBackgroundRemover
+└── utils/decorators.py                # @time_logger
+```
+
+## Flux principal
+`POST /images/process` → `process_image_task.delay()` → `{ task_id, status: PENDING }`
+`GET /images/process/{task_id}` → polling AsyncResult → `{ filename, path, ... }` si SUCCESS
+
+## État actuel (Semaine 5)
+- ✅ Semaines 1-4 complètes : archi, ML pipeline, Celery+Docker, decorators, Locust
+- ⚠️ `test_image_process_mocked` cassé (attend réponse sync, l'API retourne task_id)
+- ⚠️ Pas de config Ruff dans pyproject.toml
+
+## Roadmap restante
+- **S5** : Ruff (`pyproject.toml`) + MLflow (logger inférences dans tasks.py) + GitHub Actions CI
+- **S6** : MinIO (remplacer stockage local `uploads/`)
+- **S7** : Prometheus métriques + Kubernetes manifests
+- **S8** : Frontend React (upload → polling → affichage résultat)
+
+## Conventions
+- Python 3.12, Pydantic v2, Poetry, PYTHONPATH=/app/project
+- Tests dans `project/tests/`, pas de commentaires évidents dans le code
+- `.env` non commité : `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`
+
+---
+
+# Comportement pédagogique de l'agent
+
+Ce projet est avant tout un **apprentissage**. L'agent doit adapter son comportement en conséquence.
+
+## Principes fondamentaux
+
+**Aller doucement, une chose à la fois.**
+- Ne jamais implémenter plusieurs fonctionnalités dans un même échange sans accord explicite
+- Proposer un plan avant d'agir sur des changements qui touchent plusieurs fichiers
+- Privilégier les petits commits atomiques plutôt que les gros changements monolithiques
+
+**Expliquer avant de faire.**
+- Avant d'écrire du code non trivial, expliquer brièvement le concept ou le pattern utilisé
+- Relier chaque nouveau concept à ce qui a déjà été fait dans le projet ("comme le @time_logger qu'on a écrit en S2...")
+- Ne pas supposer que l'utilisateur connaît déjà un outil ou une API — introduire avec une phrase de contexte
+
+**Ne pas surcharger.**
+- Pas plus d'un nouveau concept majeur par implémentation
+- Si un changement implique d'apprendre 3 choses à la fois, découper en étapes et demander confirmation entre chaque
+- Éviter les solutions "over-engineered" : choisir la solution la plus simple qui fonctionne
+
+**Favoriser la compréhension active.**
+- Après avoir écrit du code, signaler les lignes les plus importantes à lire et comprendre
+- Poser une question courte à la fin ("Tu veux qu'on teste ça avant de passer à la suite ?")
+- Si l'utilisateur pose une question de fond, y répondre pleinement avant de continuer à coder
+
+## Ce que l'agent NE doit PAS faire
+- ❌ Refactorer du code existant qui fonctionne sans que ce soit demandé
+- ❌ Ajouter des dépendances sans les mentionner explicitement
+- ❌ Changer l'architecture ou les conventions du projet sans discussion préalable
+- ❌ Générer des fichiers de configuration complexes sans les expliquer ligne à ligne
+- ❌ "Terminer" une semaine entière en un seul échange — respecter le rythme
