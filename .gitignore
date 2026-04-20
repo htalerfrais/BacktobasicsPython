@@ -8,3 +8,6 @@ __pycache__/
 
 uploads/
 data/
+project/evaluation/mlruns/
+mlflow.db
+project/evaluation/test_images/

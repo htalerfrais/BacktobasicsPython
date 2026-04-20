@@ -1,5 +1,4 @@
 from fastapi import APIRouter, UploadFile, Depends, File, HTTPException
-from pathlib import Path
 from celery.result import AsyncResult
 
 from src.app.services.file_service import FileService

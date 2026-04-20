@@ -2,7 +2,6 @@ import io
 import uuid
 from locust import HttpUser, task, constant
 from PIL import Image
-import time
 
 
 def create_test_image():

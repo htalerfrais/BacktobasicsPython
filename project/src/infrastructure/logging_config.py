@@ -17,11 +17,11 @@ def setup_logging():
     
     # Handlers ===============
     
-    # Console Handlers =======
+    # Console Handlers ===========
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
     
-    # File Handlers ==========
+    # File Handlers ==============================
     file_handler = logging.FileHandler("app.log")
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.INFO) # override le level du logger racine
