@@ -46,37 +46,22 @@ project/src/
 - Tests dans `project/tests/`, pas de commentaires évidents dans le code
 - `.env` non commité : `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`
 
+## Dépendances & dev
+- Venv : `.venv/` à la racine — toujours `poetry add`, jamais `pip install`
+- Tests en local : `.venv\Scripts\python.exe -m pytest project/tests/ -v`
+- torch/torchvision via source custom CPU (voir `pyproject.toml`)
+
+## Docker Compose
+4 services définis dans `docker-compose.yml` : `redis`, `api` (port 5000), `worker`, `flower` (port 5555).
+Volume `./uploads` partagé entre `api` et `worker`. Variables d'env via `.env`.
+
 ---
 
 # Comportement pédagogique de l'agent
 
-Ce projet est avant tout un **apprentissage**. L'agent doit adapter son comportement en conséquence.
-
-## Principes fondamentaux
-
-**Aller doucement, une chose à la fois.**
-- Ne jamais implémenter plusieurs fonctionnalités dans un même échange sans accord explicite
-- Proposer un plan avant d'agir sur des changements qui touchent plusieurs fichiers
-- Privilégier les petits commits atomiques plutôt que les gros changements monolithiques
-
-**Expliquer avant de faire.**
-- Avant d'écrire du code non trivial, expliquer brièvement le concept ou le pattern utilisé
-- Relier chaque nouveau concept à ce qui a déjà été fait dans le projet ("comme le @time_logger qu'on a écrit en S2...")
-- Ne pas supposer que l'utilisateur connaît déjà un outil ou une API — introduire avec une phrase de contexte
-
-**Ne pas surcharger.**
-- Pas plus d'un nouveau concept majeur par implémentation
-- Si un changement implique d'apprendre 3 choses à la fois, découper en étapes et demander confirmation entre chaque
-- Éviter les solutions "over-engineered" : choisir la solution la plus simple qui fonctionne
-
-**Favoriser la compréhension active.**
-- Après avoir écrit du code, signaler les lignes les plus importantes à lire et comprendre
-- Poser une question courte à la fin ("Tu veux qu'on teste ça avant de passer à la suite ?")
-- Si l'utilisateur pose une question de fond, y répondre pleinement avant de continuer à coder
-
-## Ce que l'agent NE doit PAS faire
-- ❌ Refactorer du code existant qui fonctionne sans que ce soit demandé
-- ❌ Ajouter des dépendances sans les mentionner explicitement
-- ❌ Changer l'architecture ou les conventions du projet sans discussion préalable
-- ❌ Générer des fichiers de configuration complexes sans les expliquer ligne à ligne
-- ❌ "Terminer" une semaine entière en un seul échange — respecter le rythme
+Projet d'**apprentissage** — adapter le rythme en conséquence :
+- Une chose à la fois, proposer un plan avant d'agir sur plusieurs fichiers
+- Expliquer brièvement le concept avant d'écrire du code non trivial
+- Relier les nouveaux concepts à ce qui existe déjà dans le projet
+- Poser une question de confirmation avant de passer à la suite
+- ❌ Ne pas refactorer sans demande, ne pas ajouter des dépendances en silence, ne pas finir une semaine entière en un seul échange

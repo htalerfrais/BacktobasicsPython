@@ -7,6 +7,7 @@ from typing import Optional
 from src.domain.models import ImageMetadata
 
 class ImageUploadResponse(BaseModel):
+    """Retourné par POST /upload ou par GET /process/{task_id} si SUCCESS"""
     file_id : Optional[int] = None
     path : str = None
     filename : str

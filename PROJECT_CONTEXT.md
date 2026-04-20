@@ -219,3 +219,5 @@ CELERY_RESULT_BACKEND=redis://redis:6379/0
 | `Dockerfile` | Build de l'image |
 | `pyproject.toml` | Dépendances + config outils |
 | `project/tests/test_api.py` | Tests API (partiellement cassés) |
+
+
