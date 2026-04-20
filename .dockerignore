@@ -20,3 +20,4 @@ venv/
 # Evaluation
 project/evaluation/test_images/
 project/evaluation/mlruns/
+mlflow.db
