@@ -64,7 +64,7 @@ def run_evaluation():
     processor = PyTorchBackgroundRemover(device=DEVICE)
 
     # Stocke tous les runs dans evaluation/mlruns/ plutôt qu'à la racine du repo
-    mlflow.set_tracking_uri(str(Path(__file__).parent / "mlruns"))
+    mlflow.set_tracking_uri((Path(__file__).parent / "mlruns").as_uri())
     mlflow.set_experiment(EXPERIMENT_NAME)
 
     with mlflow.start_run(run_name=MODEL_NAME):
