@@ -46,7 +46,6 @@ services:
       - "5000:5000"
     volumes:
       - ./project:/app/project
-      - ./uploads:/app/uploads  # bind mount: un seul dossier uploads à la racine du repo
     depends_on:
       redis:
         condition: service_started
@@ -63,7 +62,6 @@ services:
     command: celery -A src.infrastructure.celery.celery_app worker --loglevel=info -E
     volumes:
       - ./project:/app/project
-      - ./uploads:/app/uploads  # bind mount: un seul dossier uploads à la racine du repo
     depends_on:
       redis:
         condition: service_started

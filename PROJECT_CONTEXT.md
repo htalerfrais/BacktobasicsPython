@@ -21,7 +21,7 @@
 | Async | Celery + Redis |
 | Monitoring | Flower (dashboard Celery) |
 | Containerisation | Docker + Docker Compose |
-| Object Storage | Local → MinIO (semaine 6) |
+| Object Storage | MinIO (S3-compatible) via `S3Storage` (boto3) |
 | Qualité code | Ruff (E+F defaults), Pytest |
 | Model evaluation | MLflow (dev only, hors prod) |
 | Load testing | Locust |
@@ -35,20 +35,21 @@
 project/src/
 ├── main.py                            # Entrypoint FastAPI
 ├── app/services/
-│   ├── file_service.py                # Persistance fichiers (à remplacer par MinIO)
-│   └── image_service.py               # Orchestration pipeline
+│   ├── file_service.py                # Façade storage (délègue à StoragePort)
+│   └── image_service.py               # Orchestration pipeline ML
 ├── domain/
-│   ├── interfaces.py                  # ABCs : ImageProcessor
-│   └── models.py                      # Dataclasses : ImageMetadata, ProcessedImage
+│   ├── interfaces.py                  # ABCs : ImageProcessor, StoragePort
+│   └── models.py                      # Dataclasses : ImageMetadata (object_key), ProcessedImage
 ├── infrastructure/
 │   ├── api/
 │   │   ├── endpoints.py               # POST /images/upload, POST+GET /images/process
 │   │   └── schemas.py                 # Pydantic : ImageUploadResponse, TaskResponse, TaskStatusResponse
 │   ├── celery/
 │   │   ├── celery_app.py              # Config Celery (broker/backend Redis)
-│   │   └── tasks.py                   # process_image_task — charge ML dans le worker uniquement
+│   │   └── tasks.py                   # process_image_task — lit/écrit via S3Storage
 │   ├── logging_config.py              # app_logger → stdout + app.log
-│   └── processors.py                  # DummyProcessor, PyTorchBackgroundRemover (Singleton)
+│   ├── processors.py                  # DummyProcessor, PyTorchBackgroundRemover (Singleton)
+│   └── storage.py                     # S3Storage (implémente StoragePort via boto3/MinIO)
 └── utils/
     └── decorators.py                  # @time_logger
 ```
@@ -59,14 +60,19 @@ project/src/
 
 ```
 POST /images/process
-  → FileService.save_file() : sauvegarde dans uploads/images/
-  → process_image_task.delay(path, filename) [Celery]
+  → FileService.save(data, key="inputs/<filename>") → S3Storage → MinIO
+  → process_image_task.delay(object_key, filename) [Celery]
   → retourne { task_id, status: "PENDING" }
+
+Worker (process_image_task) :
+  → FileService.get(input_key) ← S3Storage ← MinIO
+  → pipeline ML (DeepLabV3)
+  → FileService.save(result, key="outputs/proc_<stem>.png") → MinIO
 
 GET /images/process/{task_id}
   → AsyncResult(task_id)
   → PENDING : { task_id, status, result: null }
-  → SUCCESS : { task_id, status, result: ImageUploadResponse }
+  → SUCCESS : { task_id, status, result: { object_key, filename, ... } }
   → FAILURE : HTTP 500
 ```
 
@@ -85,7 +91,7 @@ Le worker charge PyTorchBackgroundRemover **une seule fois** au démarrage (Sing
 | `worker` | Celery worker (ML) | — |
 | `flower` | Dashboard Celery | 5555 |
 
-Volumes : `./uploads` → `/app/uploads` (api + worker) ; `minio_data` pour les données MinIO.
+Volume : `minio_data` pour les données MinIO (stockage objet). Le bind mount `uploads/` a été supprimé — api et worker n'écrivent plus sur disque.
 
 Variables d’environnement : voir `.env.example` (copier vers `.env`). Inclut Celery + MinIO (`MINIO_ROOT_*`, `MINIO_BUCKET`, `MINIO_ENDPOINT` pour le code boto3 à venir).
 
@@ -127,38 +133,34 @@ Fichier : `project/evaluation/run_experiment.py`
 
 ---
 
-## État actuel — fin Semaine 5 ✅
+## État actuel — fin Semaine 6 ✅
 
 ### Implémenté
 - Architecture hexagonale complète
 - Pipeline ML PyTorch background removal (DeepLabV3)
 - API FastAPI : upload + process async + poll status
 - Celery + Redis, tâche `process_image_task`
-- Docker Compose multi-services (api, worker, redis, flower)
+- Docker Compose 6 services : redis, minio, minio-init, api, worker, flower
 - Dockerfile fonctionnel (Poetry, PYTHONPATH)
 - `@time_logger`, logging stdout + fichier
 - Locust load testing
-- Tests unitaires réécrits (`test_api.py`) : 4 tests mockés couvrant upload, enqueue, poll PENDING, poll SUCCESS
+- Tests unitaires (`test_api.py`) : 4 tests mockés avec `dependency_overrides`
 - Ruff installé (comportement par défaut E+F)
 - MLflow evaluation pipeline sur ECSSD
 - GitHub Actions CI (Ruff + Pytest sur chaque push)
+- `StoragePort` ABC dans le domain, `S3Storage` dans l'infrastructure
+- `FileService` refactorisé comme façade sur `StoragePort`
+- `ImageMetadata.path` → `object_key`
+- Bind mount `uploads/` supprimé — tout passe par MinIO
 
 ### Dette technique
 - `test_model.py` : script standalone non-pytest, à supprimer ou réécrire
 - `main.py` ne configure pas le logging Uvicorn/FastAPI globalement
-- `FileService` encore basé sur le filesystem local (sera remplacé en S6)
+- Pas de tests d'intégration MinIO (à faire avec `testcontainers` ou manuellement)
 
 ---
 
 ## Roadmap restante
-
-### Semaine 6 — Object Storage
-1. Ajouter service `minio` dans `docker-compose.yml`
-2. Remplacer `FileService` par client MinIO/boto3
-3. `process_image_task` upload résultat dans bucket MinIO
-4. `GET /images/process/{task_id}` retourne URL MinIO
-
-**Pas dans S6 :** presigned URLs, batch processing
 
 ### Semaine 7 — Scaling & Infrastructure
 1. Prometheus : endpoint `/metrics` FastAPI via `prometheus-fastapi-instrumentator`

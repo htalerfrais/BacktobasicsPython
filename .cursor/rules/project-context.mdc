@@ -17,34 +17,34 @@ FastAPI + Uvicorn | PyTorch DeepLabV3 (CPU) | Celery + Redis | Docker Compose | 
 ```
 project/src/
 ├── main.py                            # Entrypoint
-├── app/services/                      # file_service.py, image_service.py
-├── domain/                            # interfaces.py (ABCs), models.py (dataclasses)
+├── app/services/                      # file_service.py (façade StoragePort), image_service.py
+├── domain/                            # interfaces.py (ImageProcessor, StoragePort), models.py (ImageMetadata: object_key)
 ├── infrastructure/
 │   ├── api/endpoints.py               # POST /images/upload, POST+GET /images/process
-│   ├── celery/tasks.py                # process_image_task (charge ML dans le worker)
-│   └── processors.py                  # PyTorchBackgroundRemover
+│   ├── celery/tasks.py                # process_image_task (lit/écrit via S3Storage)
+│   ├── processors.py                  # PyTorchBackgroundRemover
+│   └── storage.py                     # S3Storage (boto3 → MinIO)
 └── utils/decorators.py                # @time_logger
 ```
 
 ## Flux principal
-`POST /images/process` → `process_image_task.delay()` → `{ task_id, status: PENDING }`
-`GET /images/process/{task_id}` → polling AsyncResult → `{ filename, path, ... }` si SUCCESS
+`POST /images/process` → `FileService.save(data, key="inputs/...")` → MinIO → `process_image_task.delay(object_key)` → `{ task_id, status: PENDING }`
+`GET /images/process/{task_id}` → polling AsyncResult → `{ filename, object_key, ... }` si SUCCESS
 
-## État actuel (Semaine 5)
-- ✅ Semaines 1-4 complètes : archi, ML pipeline, Celery+Docker, decorators, Locust
-- ⚠️ `test_image_process_mocked` cassé (attend réponse sync, l'API retourne task_id)
-- ⚠️ Pas de config Ruff dans pyproject.toml
+## État actuel — fin Semaine 6 ✅
+- S1-S6 complètes : archi hexagonale, ML, Celery+Docker, tests, Ruff, MLflow, CI, MinIO
+- `StoragePort` + `S3Storage` (boto3) — `FileService` délègue à `StoragePort`
+- `ImageMetadata.path` → `object_key` — bind mount `uploads/` supprimé
+- Tests mockés via `app.dependency_overrides`
 
 ## Roadmap restante
-- **S5** : Ruff (`pyproject.toml`) + MLflow (logger inférences dans tasks.py) + GitHub Actions CI
-- **S6** : MinIO (remplacer stockage local `uploads/`)
 - **S7** : Prometheus métriques + Kubernetes manifests
 - **S8** : Frontend React (upload → polling → affichage résultat)
 
 ## Conventions
 - Python 3.12, Pydantic v2, Poetry, PYTHONPATH=/app/project
 - Tests dans `project/tests/`, pas de commentaires évidents dans le code
-- `.env` non commité : `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`
+- `.env` non commité : voir `.env.example` (Celery + MinIO)
 
 ## Dépendances & dev
 - Venv : `.venv/` à la racine — toujours `poetry add`, jamais `pip install`
@@ -52,8 +52,8 @@ project/src/
 - torch/torchvision via source custom CPU (voir `pyproject.toml`)
 
 ## Docker Compose
-4 services définis dans `docker-compose.yml` : `redis`, `api` (port 5000), `worker`, `flower` (port 5555).
-Volume `./uploads` partagé entre `api` et `worker`. Variables d'env via `.env`.
+6 services : `redis`, `minio` (9000/9001), `minio-init` (crée le bucket), `api` (5000), `worker`, `flower` (5555).
+Volume `minio_data` pour MinIO. Tout passe par S3Storage, plus de bind mount disque. Variables d'env via `.env`.
 
 ---
 
