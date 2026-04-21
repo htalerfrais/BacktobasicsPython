@@ -15,7 +15,7 @@ class ImageMetadata:
     filename: str
     file_extension: str
     size_bytes: int
-    path : str
+    object_key: str
     file_id : Optional[int] = None
 
     def __post_init__(self) -> None :

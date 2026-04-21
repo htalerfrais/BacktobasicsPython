@@ -9,7 +9,7 @@ from src.domain.models import ImageMetadata
 class ImageUploadResponse(BaseModel):
     """Retourné par POST /upload ou par GET /process/{task_id} si SUCCESS"""
     file_id : Optional[int] = None
-    path : str = None
+    object_key: str
     filename : str
     size_bytes : int
     file_extension : str

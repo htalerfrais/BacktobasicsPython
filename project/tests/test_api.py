@@ -2,14 +2,34 @@ from unittest.mock import patch, MagicMock
 
 from fastapi.testclient import TestClient
 from src.main import app
+from src.app.services.file_service import FileService
+from src.infrastructure.api.endpoints import get_file_service
 from src.domain.models import ImageMetadata
 
 client = TestClient(app)
 
 
+def _fake_file_service(metadata: ImageMetadata) -> FileService:
+    """FileService avec storage mocké — ne touche pas S3/MinIO."""
+    mock_storage = MagicMock()
+    mock_storage.save.return_value = metadata
+    return FileService(storage=mock_storage)
+
+
 def test_empty_image():
-    file = {"file": ("test.jpg", b"fake image content", "image/jpeg")}
-    response = client.post("/images/upload", files=file)
+    fake_metadata = ImageMetadata(
+        filename="test.jpg",
+        file_extension="jpg",
+        size_bytes=18,
+        object_key="inputs/test.jpg",
+    )
+    # dependency_overrides : mécanisme natif FastAPI pour remplacer une dépendance en test
+    app.dependency_overrides[get_file_service] = lambda: _fake_file_service(fake_metadata)
+    try:
+        response = client.post("/images/upload", files={"file": ("test.jpg", b"fake image content", "image/jpeg")})
+    finally:
+        app.dependency_overrides.clear()
+
     assert response.status_code == 200
     assert "filename" in response.json()
 
@@ -20,16 +40,18 @@ def test_process_enqueues_task():
         filename="lenna.jpg",
         file_extension="jpg",
         size_bytes=100,
-        path="uploads/images/lenna.jpg",
+        object_key="inputs/lenna.jpg",
     )
     fake_task = MagicMock()
     fake_task.id = "fake-task-id-123"
 
-    with patch("src.app.services.file_service.FileService.save_file", return_value=fake_metadata), \
-         patch("src.infrastructure.api.endpoints.process_image_task") as mock_task:
-
-        mock_task.delay.return_value = fake_task
-        response = client.post("/images/process", files={"file": ("lenna.jpg", b"fake_input", "image/jpeg")})
+    app.dependency_overrides[get_file_service] = lambda: _fake_file_service(fake_metadata)
+    try:
+        with patch("src.infrastructure.api.endpoints.process_image_task") as mock_task:
+            mock_task.delay.return_value = fake_task
+            response = client.post("/images/process", files={"file": ("lenna.jpg", b"fake_input", "image/jpeg")})
+    finally:
+        app.dependency_overrides.clear()
 
     assert response.status_code == 200
     data = response.json()
@@ -56,10 +78,9 @@ def test_get_status_pending():
 
 def test_get_status_success():
     """GET /images/process/{task_id} retourne le résultat complet quand la tâche est SUCCESS."""
-    # Ce dict correspond exactement au return de process_image_task dans tasks.py
     fake_result = {
         "filename": "proc_lenna.png",
-        "path": "uploads/images/proc_lenna.png",
+        "object_key": "outputs/proc_lenna.png",
         "file_extension": "png",
         "size_bytes": 2048,
     }

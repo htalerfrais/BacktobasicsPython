@@ -1,5 +1,36 @@
 services:
 
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-backtobasics}
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        i=0
+        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" 2>/dev/null; do
+          i=$$((i+1)); [ $$i -gt 60 ] && exit 1; sleep 1;
+        done
+        mc mb "local/$$MINIO_BUCKET" --ignore-existing
+    restart: "no"
+
   redis:
     image: redis:7-alpine
     command: redis-server --save "" --appendonly no
@@ -17,7 +48,12 @@ services:
       - ./project:/app/project
       - ./uploads:/app/uploads  # bind mount: un seul dossier uploads à la racine du repo
     depends_on:
-      - redis
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
 
   worker:
     build: .
@@ -29,7 +65,12 @@ services:
       - ./project:/app/project
       - ./uploads:/app/uploads  # bind mount: un seul dossier uploads à la racine du repo
     depends_on:
-      - redis
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
 
   flower:
     build: .
@@ -41,3 +82,6 @@ services:
     depends_on:
       - redis
       - worker
+
+volumes:
+  minio_data:
