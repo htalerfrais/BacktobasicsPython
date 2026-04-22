@@ -3,9 +3,9 @@ from src.domain.models import ImageMetadata
 
 
 class FileService:
-    """Service applicatif de gestion des fichiers.
-    
-    Délègue entièrement au StoragePort injecté — ne connaît pas boto3 ni le filesystem.
+    """
+    Délègue entièrement au StoragePort injecté (infrastructure), 
+    ne connaît pas boto3 ni le filesystem.
     """
 
     def __init__(self, storage: StoragePort):

@@ -1,4 +1,7 @@
+import time
+
 from src.domain.interfaces import ImageProcessor, ProcessedImage
+from src.infrastructure.metrics import ML_INFERENCE_DURATION
 from src.utils.decorators import time_logger
 
 from typing import List, Tuple
@@ -85,10 +88,12 @@ class PyTorchBackgroundRemover(ImageProcessor):
         return tensor.to(self.device), image
     
     def _inference(self, tensor : torch.Tensor) -> torch.Tensor:
-        # tensors to tensors
-        with torch.no_grad():
-            output = self.model(tensor)["out"]  # dimensions (21 classes) [1, 21, H, W]
-        return output
+        start = time.perf_counter()
+        try:
+            with torch.no_grad():
+                return self.model(tensor)["out"]  # dimensions (21 classes) [1, 21, H, W]
+        finally:
+            ML_INFERENCE_DURATION.observe(time.perf_counter() - start)
     
     def _postprocess(self, tensor, original_image):
         # tensors to bytes

@@ -58,8 +58,10 @@ services:
     build: .
     env_file:
       - .env
-    # -E pour publier evenements
-    command: celery -A src.infrastructure.celery.celery_app worker --loglevel=info -E
+    # -E pour publier evenements, --concurrency=1 car inference ML CPU-bound
+    command: celery -A src.infrastructure.celery.celery_app worker --loglevel=info -E --concurrency=1
+    ports:
+      - "8000:8000"
     volumes:
       - ./project:/app/project
     depends_on:
@@ -81,5 +83,26 @@ services:
       - redis
       - worker
 
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      # ajouter des fichiers au volumes pour ce conteneur construit à partir d'une image.
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+
 volumes:
   minio_data:
+  grafana_data:

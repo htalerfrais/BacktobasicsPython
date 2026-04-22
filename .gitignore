@@ -6,7 +6,6 @@ __pycache__/
 .env
 
 
-uploads/
 data/
 project/evaluation/mlruns/
 mlflow.db

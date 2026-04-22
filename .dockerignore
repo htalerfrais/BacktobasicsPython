@@ -7,8 +7,7 @@
 **/*.egg-info/
 .eggs/
 
-# Uploads & data générés à runtime
-uploads/
+# data générés à runtime
 project/app.log
 app.log
 
