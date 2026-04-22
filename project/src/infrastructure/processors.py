@@ -1,7 +1,7 @@
 import time
 
 from src.domain.interfaces import ImageProcessor, ProcessedImage
-from src.infrastructure.metrics import ML_INFERENCE_DURATION
+from src.infrastructure.metrics import ML_INFERENCE_DURATION, ML_MASK_CONFIDENCE
 from src.utils.decorators import time_logger
 
 from typing import List, Tuple
@@ -55,7 +55,7 @@ class CompositeProcessor(ImageProcessor):
     
 
 class PyTorchBackgroundRemover(ImageProcessor):
-    _instance = None # variable niveau classe commune auw instances
+    _instance = None  # variable de classe : instance unique (singleton)
     
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -93,33 +93,48 @@ class PyTorchBackgroundRemover(ImageProcessor):
             with torch.no_grad():
                 return self.model(tensor)["out"]  # dimensions (21 classes) [1, 21, H, W]
         finally:
+            # toujours enregistrer la durée (succès ou exception) pour Prometheus
             ML_INFERENCE_DURATION.observe(time.perf_counter() - start)
-    
-    def _postprocess(self, tensor, original_image):
-        # tensors to bytes
+
+    def _postprocess(self, tensor, original_image) -> Tuple[bytes, float | None]:
+        # tensors (logits) -> bytes PNG RGBA + score de confiance optionnel pour les métriques
         orig_size = (original_image.height, original_image.width)
-        # redimensionner logits en sortie de model pour fit avec taille originale de l'image
-        resized_logits = F.interpolate(tensor, size=orig_size, mode='bilinear', align_corners=False)
-        # argmax sur la dimensiond des classes, retirer channel de batch.
-        predictions = torch.argmax(resized_logits, dim=1).squeeze(0)
-        mask = (predictions != 0).cpu().numpy()   # on garde que piexels sur lesquels argmax n'est pas 0 : qui ne sont pas classés en background
+        with torch.no_grad():
+            # redimensionner logits en sortie de model pour fit avec taille originale de l'image
+            resized_logits = F.interpolate(
+                tensor, size=orig_size, mode="bilinear", align_corners=False
+            )
+            # proba de la classe prédite par pixel (max du softmax sur les 21 classes)
+            probs = torch.softmax(resized_logits, dim=1)
+            max_per_pixel = probs.max(dim=1).values.squeeze(0)
+            # argmax sur la dimension des classes, retirer channel de batch
+            predictions = torch.argmax(resized_logits, dim=1).squeeze(0)
+        # pixels "sujet" : pas la classe 0 (background COCO)
+        foreground = predictions != 0
+        if foreground.any():
+            # moyenne de la proba du gagnant sur le masque — une valeur / image pour ml_mask_confidence
+            mean_conf = max_per_pixel[foreground].float().mean().item()
+        else:
+            # toute l'image classée en fond : pas d'observation histogramme (évite biais)
+            mean_conf = None
+        mask = foreground.cpu().numpy()  # même masque binaire qu'avant pour l'alpha
         image_np = np.array(original_image)
-        
-        # construction de l'image RGBA (du alpha) pour avoir de la transparence au niveau du background
+
+        # construction de l'image RGBA (canal alpha) pour la transparence du background
         alpha = mask.astype(np.uint8) * 255
-        # dstack pour ajouter le canal alpha 
         rgba = np.dstack((image_np, alpha))
         result = Image.fromarray(rgba.astype(np.uint8), mode="RGBA")
-        
-        # on veut retourner des bytes, pas un objet PIL Image python
-        buffer = io.BytesIO() # création d'un fichier dans la RAM 
-        result.save(buffer, format="PNG")  # comme with open("image.png", "wb") mais dans le fichier buffer hors du disque
-        return buffer.getvalue()
-      
+
+        buffer = io.BytesIO()
+        result.save(buffer, format="PNG")
+        return buffer.getvalue(), mean_conf
+
     @time_logger
     def process(self, image_bytes : bytes) -> ProcessedImage:
         preprocessed, original_image = self._preprocess(image_bytes)
         inferenced = self._inference(preprocessed)
-        postprocessed = self._postprocess(inferenced, original_image)
+        postprocessed, mask_conf = self._postprocess(inferenced, original_image)
+        if mask_conf is not None:
+            ML_MASK_CONFIDENCE.observe(mask_conf)  # worker uniquement (Celery)
         output = ProcessedImage(data=postprocessed, file_extension='png')
         return output
