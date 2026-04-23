@@ -1,0 +1,18 @@
+# NodePort : accessible depuis la machine hôte via `minikube service api -n backtobasics`
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: backtobasics
+  labels:
+    app.kubernetes.io/name: api
+    app.kubernetes.io/part-of: backtobasics
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: api
+  ports:
+    - name: http
+      port: 5000
+      targetPort: http
+      nodePort: 30500

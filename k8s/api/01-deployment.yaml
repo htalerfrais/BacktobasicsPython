@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: backtobasics
+  labels:
+    app.kubernetes.io/name: api
+    app.kubernetes.io/part-of: backtobasics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: api
+    spec:
+      containers:
+        - name: api
+          image: backtobasics:latest
+          # imagePullPolicy Never : l'image est dans le daemon Minikube (étape 2), pas sur un registry externe
+          imagePullPolicy: Never
+          command:
+            - uvicorn
+            - src.main:app
+            - --host
+            - "0.0.0.0"
+            - --port
+            - "5000"
+          # Sans --reload : les modifications de fichiers ne sont pas hot-reloadées en cluster
+          ports:
+            - name: http
+              containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: backtobasics-config
+            - secretRef:
+                name: backtobasics-minio
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"

@@ -1,0 +1,14 @@
+# Variables non secrètes (équivalent partiel de .env.example).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backtobasics-config
+  namespace: backtobasics
+  labels:
+    app.kubernetes.io/name: backtobasics
+data:
+  CELERY_BROKER_URL: "redis://redis:6379/0"
+  CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+  MINIO_ENDPOINT: "http://minio:9000"
+  MINIO_BUCKET: "backtobasics"
+  PROMETHEUS_MULTIPROC_DIR: "/tmp/prometheus_multiproc"

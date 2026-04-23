@@ -10,3 +10,6 @@ data/
 project/evaluation/mlruns/
 mlflow.db
 project/evaluation/test_images/
+
+# kubernetes
+k8s/secrets/
