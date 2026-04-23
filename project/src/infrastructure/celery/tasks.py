@@ -2,7 +2,7 @@ import time
 from pathlib import Path
 
 from celery.signals import worker_ready
-from prometheus_client import start_http_server
+from prometheus_client import start_http_server, CollectorRegistry, multiprocess as prom_multiprocess
 
 from src.infrastructure.celery.celery_app import app
 from src.app.services.image_service import ImageProcessorService
@@ -16,7 +16,12 @@ _service: ImageProcessorService | None = None
 
 @worker_ready.connect
 def start_metrics_server(**kwargs):
-    start_http_server(8000)
+    # Celery prefork runs tasks in child processes; each child writes metrics to
+    # PROMETHEUS_MULTIPROC_DIR. The HTTP server in the main process reads and
+    # merges all files via MultiProcessCollector so Prometheus sees the real counts.
+    registry = CollectorRegistry()
+    prom_multiprocess.MultiProcessCollector(registry)
+    start_http_server(8000, registry=registry)
 
 
 # pour ne pas charger le model dans le process Uvicorn.

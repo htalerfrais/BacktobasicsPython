@@ -58,8 +58,14 @@ services:
     build: .
     env_file:
       - .env
-    # -E pour publier evenements, --concurrency=1 car inference ML CPU-bound
-    command: celery -A src.infrastructure.celery.celery_app worker --loglevel=info -E --concurrency=1
+    environment:
+      # Each forked worker process writes metrics here; the main process HTTP server
+      # reads all files via MultiProcessCollector so scrapes reflect real task counts.
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
+    # mkdir ensures the dir exists before Celery forks its worker pool
+    command: >
+      sh -c "mkdir -p /tmp/prometheus_multiproc &&
+             celery -A src.infrastructure.celery.celery_app worker --loglevel=info -E --concurrency=1"
     ports:
       - "8000:8000"
     volumes:
@@ -71,6 +77,7 @@ services:
         condition: service_started
       minio-init:
         condition: service_completed_successfully
+
 
   flower:
     build: .
