@@ -19,8 +19,10 @@
 | API | FastAPI + Uvicorn |
 | ML | PyTorch (DeepLabV3 ResNet50, CPU) |
 | Async | Celery + Redis |
-| Monitoring | Flower (dashboard Celery) |
+| Monitoring | Prometheus + Grafana + Flower (dashboard Celery) |
+| Métriques custom | `prometheus_client` (Histograms dans `infrastructure/metrics.py`) |
 | Containerisation | Docker + Docker Compose |
+| Orchestration | Kubernetes (Minikube en local) — manifests dans `k8s/` |
 | Object Storage | MinIO (S3-compatible) via `S3Storage` (boto3) |
 | Qualité code | Ruff (E+F defaults), Pytest |
 | Model evaluation | MLflow (dev only, hors prod) |
@@ -33,7 +35,7 @@
 
 ```
 project/src/
-├── main.py                            # Entrypoint FastAPI
+├── main.py                            # Entrypoint FastAPI + Prometheus instrumentator
 ├── app/services/
 │   ├── file_service.py                # Façade storage (délègue à StoragePort)
 │   └── image_service.py               # Orchestration pipeline ML
@@ -46,9 +48,10 @@ project/src/
 │   │   └── schemas.py                 # Pydantic : ImageUploadResponse, TaskResponse, TaskStatusResponse
 │   ├── celery/
 │   │   ├── celery_app.py              # Config Celery (broker/backend Redis)
-│   │   └── tasks.py                   # process_image_task — lit/écrit via S3Storage
+│   │   └── tasks.py                   # process_image_task — métriques Celery + start_http_server(8000)
 │   ├── logging_config.py              # app_logger → stdout + app.log
-│   ├── processors.py                  # DummyProcessor, PyTorchBackgroundRemover (Singleton)
+│   ├── metrics.py                     # Définitions Prometheus : CELERY_*, ML_INFERENCE_DURATION, ML_MASK_CONFIDENCE
+│   ├── processors.py                  # DummyProcessor, PyTorchBackgroundRemover (Singleton + métriques ML)
 │   └── storage.py                     # S3Storage (implémente StoragePort via boto3/MinIO)
 └── utils/
     └── decorators.py                  # @time_logger
@@ -66,8 +69,10 @@ POST /images/process
 
 Worker (process_image_task) :
   → FileService.get(input_key) ← S3Storage ← MinIO
-  → pipeline ML (DeepLabV3)
+  → pipeline ML (DeepLabV3) → _inference() → ML_INFERENCE_DURATION.observe()
+  → _postprocess() → ML_MASK_CONFIDENCE.observe()
   → FileService.save(result, key="outputs/proc_<stem>.png") → MinIO
+  → CELERY_TASK_DURATION.observe() + CELERY_TASKS_TOTAL.inc()
 
 GET /images/process/{task_id}
   → AsyncResult(task_id)
@@ -87,13 +92,64 @@ Le worker charge PyTorchBackgroundRemover **une seule fois** au démarrage (Sing
 | `redis` | Broker + backend Celery | 6379 |
 | `minio` | Stockage objet (API S3-compatible) | 9000 (API), 9001 (console web) |
 | `minio-init` | Crée le bucket `MINIO_BUCKET` au démarrage | — |
-| `api` | FastAPI app | 5000 |
-| `worker` | Celery worker (ML) | — |
+| `api` | FastAPI app + `/metrics` Prometheus | 5000 |
+| `worker` | Celery worker (ML) + metrics HTTP server | 8000 (metrics) |
 | `flower` | Dashboard Celery | 5555 |
+| `prometheus` | Scrape `/metrics` api:5000 + worker:8000 | 9090 |
+| `grafana` | Dashboards (provisionnés depuis `monitoring/`) | 3000 |
 
-Volume : `minio_data` pour les données MinIO (stockage objet). Le bind mount `uploads/` a été supprimé — api et worker n'écrivent plus sur disque.
+Volumes : `minio_data`, `grafana_data`. Config monitoring dans `monitoring/` (gitcommité sauf `k8s/secrets/`).
 
-Variables d’environnement : voir `.env.example` (copier vers `.env`). Inclut Celery + MinIO (`MINIO_ROOT_*`, `MINIO_BUCKET`, `MINIO_ENDPOINT` pour le code boto3 à venir).
+---
+
+## Métriques Prometheus
+
+Définies dans `project/src/infrastructure/metrics.py` :
+
+| Métrique | Type | Source | Description |
+|----------|------|--------|-------------|
+| `http_request_duration_seconds` | Histogram | API (auto) | Latence par endpoint (prometheus-fastapi-instrumentator) |
+| `http_requests_total` | Counter | API (auto) | Requêtes par method/handler/status |
+| `celery_task_duration_seconds` | Histogram | Worker | Durée end-to-end de `process_image_task` |
+| `celery_tasks_total` | Counter | Worker | Tâches terminées, label `status` (success/failure) |
+| `ml_inference_duration_seconds` | Histogram | Worker | Durée forward pass DeepLabV3 uniquement |
+| `ml_mask_confidence` | Histogram | Worker | Confiance softmax moyenne sur pixels foreground |
+
+Dashboard Grafana : `monitoring/grafana/dashboards/backtobasics.json` (provisionné automatiquement).
+
+---
+
+## Kubernetes (Minikube — local)
+
+Structure `k8s/` :
+
+```
+k8s/
+├── namespace.yaml
+├── configmaps/
+│   ├── app-env.yaml             # Variables non secrètes (Celery, MinIO endpoint, bucket)
+│   └── prometheus-config.yaml  # prometheus.yml (cibles api:5000 + worker:8000)
+├── secrets/                     # GITIGNORE — ne jamais commiter
+│   └── minio.yaml               # MINIO_ROOT_USER / MINIO_ROOT_PASSWORD (voir secrets/README.md)
+├── redis/                       # Deployment + Service ClusterIP
+├── minio/                       # PVC + Deployment + Service + Job init bucket
+├── api/                         # Deployment (imagePullPolicy: Never) + Service NodePort 30500
+├── worker/                      # Deployment (concurrency=1) + Service ClusterIP 8000
+├── flower/                      # Deployment + Service NodePort 30555
+├── prometheus/                  # Deployment + Service NodePort 30900
+└── grafana/                     # PVC + ConfigMap provisioning + Deployment + Service NodePort 30300
+```
+
+Commandes d'application (ordre) : voir `k8s/README.md`.
+
+NodePorts exposés depuis Minikube :
+
+| Service | NodePort |
+|---------|----------|
+| api | 30500 |
+| flower | 30555 |
+| prometheus | 30900 |
+| grafana | 30300 |
 
 ---
 
@@ -133,14 +189,14 @@ Fichier : `project/evaluation/run_experiment.py`
 
 ---
 
-## État actuel — fin Semaine 6 ✅
+## État actuel — fin Semaine 7 ✅
 
 ### Implémenté
 - Architecture hexagonale complète
 - Pipeline ML PyTorch background removal (DeepLabV3)
 - API FastAPI : upload + process async + poll status
 - Celery + Redis, tâche `process_image_task`
-- Docker Compose 6 services : redis, minio, minio-init, api, worker, flower
+- Docker Compose 8 services : redis, minio, minio-init, api, worker, flower, prometheus, grafana
 - Dockerfile fonctionnel (Poetry, PYTHONPATH)
 - `@time_logger`, logging stdout + fichier
 - Locust load testing
@@ -152,22 +208,19 @@ Fichier : `project/evaluation/run_experiment.py`
 - `FileService` refactorisé comme façade sur `StoragePort`
 - `ImageMetadata.path` → `object_key`
 - Bind mount `uploads/` supprimé — tout passe par MinIO
+- **S7 — Prometheus** : 6 métriques (HTTP auto + Celery + ML inference + ML confidence)
+- **S7 — Grafana** : dashboard provisionné automatiquement (`backtobasics.json`)
+- **S7 — Kubernetes** : manifests complets dans `k8s/` (namespace, configmaps, secrets, redis, minio, api, worker, flower, prometheus, grafana)
 
 ### Dette technique
 - `test_model.py` : script standalone non-pytest, à supprimer ou réécrire
 - `main.py` ne configure pas le logging Uvicorn/FastAPI globalement
 - Pas de tests d'intégration MinIO (à faire avec `testcontainers` ou manuellement)
+- K8s non testé en conditions réelles (Minikube local uniquement)
 
 ---
 
 ## Roadmap restante
-
-### Semaine 7 — Scaling & Infrastructure
-1. Prometheus : endpoint `/metrics` FastAPI via `prometheus-fastapi-instrumentator`
-2. Kubernetes : manifests YAML (Deployment + Service pour api, worker, redis)
-3. Déploiement local minikube ou kind
-
-**Pas dans S7 :** GPU pass-through, Flower approfondissement
 
 ### Semaine 8 — Frontend React
 1. Interface React : upload, bouton process
@@ -184,5 +237,6 @@ Fichier : `project/evaluation/run_experiment.py`
 - Python 3.12, Pydantic v2, FastAPI async
 - Pas de commentaires évidents dans le code
 - Tests dans `project/tests/`
-- `.env` non commité : `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`
-- Gitignored : `uploads/`, `data/`, `.venv/`, `mlruns/`, `project/evaluation/test_images/`, `mlflow.db`
+- `.env` non commité : `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `MINIO_*`
+- `k8s/secrets/` non commité : credentials Kubernetes (voir `k8s/secrets/README.md`)
+- Gitignored : `data/`, `.venv/`, `mlruns/`, `project/evaluation/test_images/`, `mlflow.db`, `k8s/secrets/`

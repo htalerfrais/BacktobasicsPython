@@ -3,7 +3,7 @@ from prometheus_client import Counter, Histogram
 CELERY_TASK_DURATION = Histogram(
     "celery_task_duration_seconds",
     "End-to-end duration of process_image_task",
-    buckets=[1, 2, 5, 10, 20, 30, 60],
+    buckets=[0.1, 0.25, 0.5, 1, 2, 5, 10, 20, 30, 60],
 )
 
 CELERY_TASKS_TOTAL = Counter(

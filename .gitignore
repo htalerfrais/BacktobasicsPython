@@ -13,3 +13,6 @@ project/evaluation/test_images/
 
 # kubernetes
 k8s/secrets/
+
+# locust load-test image assets (COCO samples)
+project/tests/load/assets/

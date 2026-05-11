@@ -1,90 +1,126 @@
 # Kubernetes (Minikube)
 
-## Pourquoi cette arborescence ?
+Ce dossier contient les manifests Kubernetes du projet `backtobasics`.
 
-- **Un dossier par composant** (`redis/`, `minio/`, `api/`, …) : on retrouve vite ce qui appartient à quoi, comme en prod.
-- **Fichiers séparés** (deployment, service, PVC, job) : revue de PR et `kubectl apply -f k8s/minio/` possibles.
-- **Préfixes `01-`, `02-`…** dans `minio/` (et `redis/`) : l’ordre d’application est clair (ex. PVC avant Deployment). Sans ça, `kubectl` trie par nom et risquerait d’appliquer le Deployment avant le PVC.
-- `api/`, `worker/`, `prometheus/`, `grafana/` : prêts pour les étapes suivantes (fichiers YAML à venir, dossiers maintenus via `.gitkeep`).
+## Arborescence
 
-Avant, des fichiers plats `04-redis.yaml` avaient le même contenu : pratique pour itérer vite, moins pour grandir le socle.
+- Un dossier par composant (`redis/`, `minio/`, `api/`, `worker/`, `flower/`, `prometheus/`, `grafana/`).
+- Fichiers séparés (`deployment`, `service`, `pvc`, `job`, `hpa`) pour faciliter la revue et les `kubectl apply -f <dossier>/`.
+- Préfixes `01-`, `02-`, `03-`... pour expliciter l'ordre d'application.
 
 ---
 
-## Ordre d’application (recommandé)
+## Prérequis (session Minikube fraîche)
+
+```bash
+minikube start --cpus=4 --memory=7168
+kubectl get nodes
+
+# requis pour HPA
+minikube addons enable metrics-server
+kubectl top nodes
+```
+
+Construire l'image dans le daemon Docker de Minikube (sinon `imagePullPolicy: Never` ne trouve pas l'image) :
+
+```powershell
+minikube -p minikube docker-env --shell powershell | Invoke-Expression
+docker build -t backtobasics:latest .
+```
+
+---
+
+## Ordre de déploiement (complet)
 
 ```bash
 kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/configmaps/
-kubectl apply -f k8s/secrets/
+
+# secret local (non commité)
+kubectl apply -f k8s/secrets/minio.yaml
+
 kubectl apply -f k8s/redis/
-kubectl apply -f k8s/minio/01-pvc.yaml
-kubectl apply -f k8s/minio/02-deployment.yaml
-kubectl apply -f k8s/minio/03-service.yaml
-kubectl wait -n backtobasics deployment/minio --for=condition=Available --timeout=120s
-kubectl apply -f k8s/minio/04-job-init.yaml
-```
-
-Ou en une ligne pour redis + minio (hors job), si déjà up to date :
-
-```bash
-kubectl apply -f k8s/redis/
-kubectl apply -f k8s/minio/01-pvc.yaml -f k8s/minio/02-deployment.yaml -f k8s/minio/03-service.yaml
-```
-
-Vérifications :
-
-```bash
-kubectl -n backtobasics get pod,svc,pvc
-kubectl -n backtobasics logs job/minio-init
-```
-
----
-
-## Changer le secret MinIO (sans commit)
-
-```bash
-kubectl -n backtobasics delete secret backtobasics-minio
-kubectl -n backtobasics create secret generic backtobasics-minio \
-  --from-literal=MINIO_ROOT_USER=tonuser \
-  --from-literal=MINIO_ROOT_PASSWORD=tonpass
-```
-
-Les services s’appellent `redis` et `minio` (aligné avec le ConfigMap `backtobasics-config`).
-
----
-
----
-
-## Étape 5 : API + Worker
-
-**Prérequis :** étapes 3 + 4 appliquées. Image `backtobasics:latest` construite dans Minikube (étape 2).
-
-```bash
+kubectl apply -f k8s/minio/
 kubectl apply -f k8s/api/
 kubectl apply -f k8s/worker/
-kubectl -n backtobasics rollout status deployment/api
-kubectl -n backtobasics rollout status deployment/worker
+kubectl apply -f k8s/flower/
+kubectl apply -f k8s/prometheus/
+kubectl apply -f k8s/grafana/
 ```
 
-Accéder à l'API depuis la machine hôte :
+Attendre les déploiements principaux :
 
 ```bash
-minikube service api -n backtobasics
+kubectl -n backtobasics rollout status deployment/api
+kubectl -n backtobasics rollout status deployment/worker
+kubectl -n backtobasics rollout status deployment/prometheus
+kubectl -n backtobasics rollout status deployment/grafana
 ```
 
-Minikube ouvre l'URL dans le navigateur ou affiche l'URL (`http://<minikube-ip>:30500`).
+---
 
-Vérifier les métriques du worker (depuis l'intérieur du cluster) :
+## HPA worker
+
+Le HPA est défini dans `k8s/worker/03-hpa.yaml` :
+
+- cible : `Deployment/worker`
+- CPU target : `60%`
+- bornes : `minReplicas: 1`, `maxReplicas: 5`
+- `behavior` : scale-down ralenti pour éviter l'effet yoyo en démo
+
+Vérification HPA :
+
+```bash
+kubectl -n backtobasics get hpa
+kubectl -n backtobasics get hpa -w
+kubectl -n backtobasics get pods -l app.kubernetes.io/name=worker -w
+```
+
+---
+
+## Vérifications utiles
+
+```bash
+kubectl -n backtobasics get pod,svc,pvc,hpa
+kubectl -n backtobasics logs job/minio-init
+kubectl -n backtobasics get events --sort-by=.metadata.creationTimestamp
+```
+
+Tester les métriques worker :
 
 ```bash
 kubectl -n backtobasics port-forward svc/worker 8000:8000
-# puis dans un autre terminal :
+# puis dans un autre terminal
 curl http://localhost:8000/metrics
 ```
 
 ---
 
-## Étape suivante
+## Accès UI (NodePort)
 
-Deployments `prometheus/` et `grafana/` (monitoring dans le cluster).
+- API : `http://<minikube-ip>:30500` (ou `minikube service api -n backtobasics`)
+- Flower : `http://<minikube-ip>:30555`
+- Prometheus : `http://<minikube-ip>:30900`
+- Grafana : `http://<minikube-ip>:30300`
+
+Astuce : Minikube peut ouvrir l'URL automatiquement :
+
+```bash
+minikube service api -n backtobasics
+minikube service flower -n backtobasics
+minikube service prometheus -n backtobasics
+minikube service grafana -n backtobasics
+```
+
+---
+
+## Secret MinIO local (si besoin de régénérer)
+
+```bash
+kubectl -n backtobasics delete secret backtobasics-minio --ignore-not-found
+kubectl -n backtobasics create secret generic backtobasics-minio \
+  --from-literal=MINIO_ROOT_USER=tonuser \
+  --from-literal=MINIO_ROOT_PASSWORD=tonpass
+```
+
+`k8s/secrets/` est gitignoré : ne pas commiter de credentials.
