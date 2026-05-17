@@ -1,7 +1,8 @@
 param(
     [string]$MinikubeProfile = "minikube",
     [int]$MinikubeCpus = 4,
-    [int]$MinikubeMemoryMb = 7168
+    [int]$MinikubeMemoryMb = 7168,
+    [switch]$OpenUiTunnels = $true
 )
 
 Set-StrictMode -Version Latest
@@ -54,6 +55,38 @@ function Wait-NodeMetrics {
     }
 
     throw "kubectl top nodes indisponible apres plusieurs tentatives."
+}
+
+function Start-UiTunnelTerminal {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ServiceName,
+        [Parameter(Mandatory = $true)]
+        [string]$ProfileName,
+        [string]$UrlSuffix = ""
+    )
+
+    if ([string]::IsNullOrWhiteSpace($UrlSuffix)) {
+        $command = "minikube service $ServiceName -n backtobasics --url -p $ProfileName"
+    }
+    else {
+        $commandTemplate = @'
+minikube service __SERVICE__ -n backtobasics --url -p __PROFILE__ | ForEach-Object {
+    if ($_ -match '^http') {
+        Write-Output ($_.TrimEnd('/') + '__SUFFIX__')
+    }
+    else {
+        Write-Output $_
+    }
+}
+'@
+        $command = $commandTemplate
+        $command = $command.Replace("__SERVICE__", $ServiceName)
+        $command = $command.Replace("__PROFILE__", $ProfileName)
+        $command = $command.Replace("__SUFFIX__", $UrlSuffix)
+    }
+
+    Start-Process -FilePath "powershell" -ArgumentList @("-NoExit", "-Command", $command) | Out-Null
 }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -156,10 +189,19 @@ try {
     $minikubeIp = (minikube ip -p $MinikubeProfile).Trim()
     Write-Host ""
     Write-Host "Stack K8s deployee." -ForegroundColor Green
-    Write-Host "API        : http://$minikubeIp`:30500"
+    Write-Host "API (docs) : http://$minikubeIp`:30500/docs"
     Write-Host "Flower     : http://$minikubeIp`:30555"
     Write-Host "Prometheus : http://$minikubeIp`:30900"
     Write-Host "Grafana    : http://$minikubeIp`:30300"
+
+    if ($OpenUiTunnels) {
+        Write-Host ""
+        Write-Host "Ouverture des tunnels UI (api, flower, grafana)..." -ForegroundColor Cyan
+        Start-UiTunnelTerminal -ServiceName "api" -ProfileName $MinikubeProfile -UrlSuffix "/docs"
+        Start-UiTunnelTerminal -ServiceName "flower" -ProfileName $MinikubeProfile
+        Start-UiTunnelTerminal -ServiceName "grafana" -ProfileName $MinikubeProfile
+        Write-Host "Trois terminaux ont ete lances. Garde-les ouverts pendant la demo." -ForegroundColor Yellow
+    }
 }
 finally {
     Pop-Location

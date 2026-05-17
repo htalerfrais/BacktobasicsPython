@@ -36,6 +36,9 @@ spec:
                 name: backtobasics-config
             - secretRef:
                 name: backtobasics-minio
+          env:
+            - name: PROMETHEUS_MULTIPROC_DIR
+              value: /tmp/prometheus_multiproc
           resources:
             requests:
               # PyTorch CPU est lourd : on alloue assez pour ne pas crasher sur un nœud Minikube
