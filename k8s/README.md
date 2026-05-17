@@ -28,6 +28,19 @@ minikube -p minikube docker-env --shell powershell | Invoke-Expression
 docker build -t backtobasics:latest .
 ```
 
+Script PowerShell (automatisation du démarrage + déploiement complet) :
+
+```powershell
+.\k8s\start-stack.ps1
+```
+
+Le script :
+- démarre Minikube seulement s'il n'est pas déjà `Running`
+- active `metrics-server`
+- build `backtobasics:latest` dans le daemon Docker de Minikube
+- applique les manifests dans l'ordre ci-dessous
+- attend les rollouts principaux
+
 ---
 
 ## Ordre de déploiement (complet)
@@ -36,13 +49,14 @@ docker build -t backtobasics:latest .
 kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/configmaps/
 
-# secret local (non commité)
+# Secret MinIO : source de vérité = k8s/secrets/minio.yaml (gitignoré). Éditer puis ré-appliquer pour mettre à jour.
 kubectl apply -f k8s/secrets/minio.yaml
 
 kubectl apply -f k8s/redis/
 kubectl apply -f k8s/minio/
 kubectl apply -f k8s/api/
 kubectl apply -f k8s/worker/
+kubectl apply -f k8s/kube-state-metrics/
 kubectl apply -f k8s/flower/
 kubectl apply -f k8s/prometheus/
 kubectl apply -f k8s/grafana/
@@ -53,6 +67,7 @@ Attendre les déploiements principaux :
 ```bash
 kubectl -n backtobasics rollout status deployment/api
 kubectl -n backtobasics rollout status deployment/worker
+kubectl -n backtobasics rollout status deployment/kube-state-metrics
 kubectl -n backtobasics rollout status deployment/prometheus
 kubectl -n backtobasics rollout status deployment/grafana
 ```
@@ -84,6 +99,27 @@ kubectl -n backtobasics get pods -l app.kubernetes.io/name=worker -w
 kubectl -n backtobasics get pod,svc,pvc,hpa
 kubectl -n backtobasics logs job/minio-init
 kubectl -n backtobasics get events --sort-by=.metadata.creationTimestamp
+kubectl -n backtobasics get hpa
+```
+
+Vérifier les cibles Prometheus:
+
+```bash
+minikube service prometheus -n backtobasics
+# puis dans Prometheus > Status > Targets:
+# - fastapi UP
+# - celery-worker UP
+# - kube-state-metrics UP
+# - kubernetes-nodes UP
+# - kubernetes-cadvisor UP
+```
+
+Vérifier les panels Grafana:
+
+```bash
+minikube service grafana -n backtobasics
+# dashboard "Backtobasics — Métriques":
+# section K8s non vide (pods, deployments, endpoints, HPA, CPU/mémoire)
 ```
 
 Tester les métriques worker :
@@ -111,16 +147,3 @@ minikube service flower -n backtobasics
 minikube service prometheus -n backtobasics
 minikube service grafana -n backtobasics
 ```
-
----
-
-## Secret MinIO local (si besoin de régénérer)
-
-```bash
-kubectl -n backtobasics delete secret backtobasics-minio --ignore-not-found
-kubectl -n backtobasics create secret generic backtobasics-minio \
-  --from-literal=MINIO_ROOT_USER=tonuser \
-  --from-literal=MINIO_ROOT_PASSWORD=tonpass
-```
-
-`k8s/secrets/` est gitignoré : ne pas commiter de credentials.

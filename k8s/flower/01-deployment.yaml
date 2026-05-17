@@ -16,6 +16,9 @@ spec:
       labels:
         app.kubernetes.io/name: flower
     spec:
+      # Prevent Kubernetes service-link env vars (e.g. FLOWER_PORT=tcp://...)
+      # from conflicting with Flower's own FLOWER_* settings parser.
+      enableServiceLinks: false
       containers:
         - name: flower
           image: backtobasics:latest

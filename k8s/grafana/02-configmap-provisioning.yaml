@@ -122,6 +122,80 @@ data:
             { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "histogram_quantile(0.9, sum by (le) (increase(ml_mask_confidence_bucket[15m])))", "legendFormat": "p90 (distrib. 15m)", "refId": "B" }
           ],
           "title": "ML — confiance moyenne (pixels premier plan, softmax, 15m)", "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 42 }, "id": 9,
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true } },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum by (phase) (kube_pod_status_phase{namespace=\"backtobasics\",phase=~\"Running|Pending|Failed\"} == 1)", "legendFormat": "{{phase}}", "refId": "A" }
+          ],
+          "title": "K8s — pods par phase", "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 42 }, "id": 10,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "kube_deployment_spec_replicas{namespace=\"backtobasics\"}", "legendFormat": "{{deployment}} desired", "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "kube_deployment_status_replicas_available{namespace=\"backtobasics\"}", "legendFormat": "{{deployment}} available", "refId": "B" }
+          ],
+          "title": "K8s — déploiements (desired vs available)", "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 42 }, "id": 11,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum by (service) (kube_endpoint_address_available{namespace=\"backtobasics\"})", "legendFormat": "{{service}} ready", "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum by (service) (kube_endpoint_address_not_ready{namespace=\"backtobasics\"})", "legendFormat": "{{service}} not_ready", "refId": "B" }
+          ],
+          "title": "K8s — endpoints services", "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 50 }, "id": 12,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"backtobasics\",horizontalpodautoscaler=\"worker\"}", "legendFormat": "current", "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"backtobasics\",horizontalpodautoscaler=\"worker\"}", "legendFormat": "desired", "refId": "B" }
+          ],
+          "title": "K8s — HPA worker (current vs desired)", "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "cores" }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 50 }, "id": 13,
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true } },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "topk(10, sum by (pod) (rate(container_cpu_usage_seconds_total{job=\"kubernetes-cadvisor\",namespace=\"backtobasics\",container!=\"\",container!=\"POD\",image!=\"\"}[5m])))", "legendFormat": "{{pod}}", "refId": "A" }
+          ],
+          "title": "K8s — top CPU pods (cores)", "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "bytes" }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 58 }, "id": 14,
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true } },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "topk(10, sum by (pod) (container_memory_working_set_bytes{job=\"kubernetes-cadvisor\",namespace=\"backtobasics\",container!=\"\",container!=\"POD\",image!=\"\"}))", "legendFormat": "{{pod}}", "refId": "A" }
+          ],
+          "title": "K8s — top mémoire pods", "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "max": 100, "min": 0, "unit": "percent" }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 58 }, "id": 15,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "100 * sum(rate(container_cpu_usage_seconds_total{job=\"kubernetes-cadvisor\",container!=\"\",container!=\"POD\",image!=\"\"}[5m])) / sum(kube_node_status_allocatable{resource=\"cpu\",unit=\"core\"})", "legendFormat": "CPU cluster usage %", "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "100 * sum(container_memory_working_set_bytes{job=\"kubernetes-cadvisor\",container!=\"\",container!=\"POD\",image!=\"\"}) / sum(kube_node_status_allocatable{resource=\"memory\",unit=\"byte\"})", "legendFormat": "Memory cluster usage %", "refId": "B" }
+          ],
+          "title": "K8s — CPU / mémoire cluster", "type": "timeseries"
         }
       ],
       "refresh": "10s",
@@ -134,6 +208,6 @@ data:
       "timezone": "browser",
       "title": "Backtobasics — Métriques",
       "uid": "backtobasics-metrics",
-      "version": 2,
+      "version": 3,
       "weekStart": ""
     }

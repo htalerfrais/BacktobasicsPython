@@ -8,52 +8,56 @@ alwaysApply: true
 ## Projet
 Background removal as a service : upload image → Celery worker → PyTorch (DeepLabV3) → RGBA PNG sans fond.
 **Objectif dual : apprendre ET construire un MVP présentable.**
-Source de vérité complète : `PROJECT_CONTEXT.md` à la racine.
+**Source de vérité :** `PROJECT_CONTEXT.md` à la racine. Ce fichier est la **version condensée** ; tout détail (métriques, K8s, tableaux) vit dans `PROJECT_CONTEXT.md`.
+
+## Maintenance documentation (agents)
+- Après un changement **notable** (architecture, stack, semaines roadmap S*, conventions, monitoring, manifests K8s, Docker Compose, gitignore projet) : **vérifier** si `PROJECT_CONTEXT.md` doit être mis à jour.
+- Si `PROJECT_CONTEXT.md` change (ou devrait changer) pour rester vrai : **mettre à jour** ce fichier, puis **réaligner** `.cursor/rules/project-context.mdc` pour que le condensé reflète la même réalité (pas de dérive S6/S7, nombre de services, roadmap).
+- En fin de tâche, si tu as introduit un écart doc/code sans le corriger, **signale-le** ou applique le patch minimal sur les deux fichiers.
 
 ## Stack
-FastAPI + Uvicorn | PyTorch DeepLabV3 (CPU) | Celery + Redis | Docker Compose | Poetry | Pytest | Locust
+FastAPI + Uvicorn | `prometheus-fastapi-instrumentator` + métriques custom (`infrastructure/metrics.py`) | PyTorch DeepLabV3 (CPU) | Celery + Redis | MinIO (S3 via boto3) | Docker Compose **8 services** | Kubernetes manifests `k8s/` (Minikube local, **HPA worker** CPU) + script PowerShell `k8s/start-stack.ps1` | Prometheus + Grafana (`monitoring/`) + Flower | Poetry | Pytest | Locust | MLflow (dev) | CI GitHub Actions
 
 ## Architecture hexagonale
 ```
 project/src/
-├── main.py                            # Entrypoint
-├── app/services/                      # file_service.py (façade StoragePort), image_service.py
-├── domain/                            # interfaces.py (ImageProcessor, StoragePort), models.py (ImageMetadata: object_key)
+├── main.py                            # FastAPI + Instrumentator → /metrics
+├── app/services/                      # file_service.py (StoragePort), image_service.py
+├── domain/                            # interfaces.py, models.py (object_key)
 ├── infrastructure/
-│   ├── api/endpoints.py               # POST /images/upload, POST+GET /images/process
-│   ├── celery/tasks.py                # process_image_task (lit/écrit via S3Storage)
+│   ├── api/endpoints.py, schemas.py
+│   ├── celery/celery_app.py, tasks.py # process_image_task, métriques + HTTP :8000
+│   ├── logging_config.py
+│   ├── metrics.py                     # CELERY_*, ML_* (Prometheus)
 │   ├── processors.py                  # PyTorchBackgroundRemover
-│   └── storage.py                     # S3Storage (boto3 → MinIO)
+│   └── storage.py                     # S3Storage → MinIO
 └── utils/decorators.py                # @time_logger
 ```
 
 ## Flux principal
-`POST /images/process` → `FileService.save(data, key="inputs/...")` → MinIO → `process_image_task.delay(object_key)` → `{ task_id, status: PENDING }`
-`GET /images/process/{task_id}` → polling AsyncResult → `{ filename, object_key, ... }` si SUCCESS
+`POST /images/process` → `FileService.save` → MinIO → `process_image_task.delay(...)` → `{ task_id, PENDING }`
+`GET /images/process/{task_id}` → AsyncResult → métadonnées / erreur selon statut
 
-## État actuel — fin Semaine 6 ✅
-- S1-S6 complètes : archi hexagonale, ML, Celery+Docker, tests, Ruff, MLflow, CI, MinIO
-- `StoragePort` + `S3Storage` (boto3) — `FileService` délègue à `StoragePort`
-- `ImageMetadata.path` → `object_key` — bind mount `uploads/` supprimé
-- Tests mockés via `app.dependency_overrides`
+## État actuel — fin Semaine 7 ✅
+- S1–S7 : hexagone, ML, Celery, Docker, tests, Ruff, MLflow, CI, MinIO, **Prometheus + Grafana**, **manifests K8s** (worker + **HPA**), Locust
+- `StoragePort` / `S3Storage`, pas de bind mount `uploads/`
+- Tests API mockés (`dependency_overrides`)
 
 ## Roadmap restante
-- **S7** : Prometheus métriques + Kubernetes manifests
-- **S8** : Frontend React (upload → polling → affichage résultat)
+- **S8** : Frontend React (upload → polling → résultat MinIO, Tailwind)
 
 ## Conventions
-- Python 3.12, Pydantic v2, Poetry, PYTHONPATH=/app/project
-- Tests dans `project/tests/`, pas de commentaires évidents dans le code
-- `.env` non commité : voir `.env.example` (Celery + MinIO)
+- Python 3.12, Pydantic v2, Poetry ; tests dans `project/tests/`
+- `.env` non commité : voir `.env.example` ; `k8s/secrets/` non commité — cf. `k8s/README.md`
+- Gitignored notables : `project/tests/load/assets/`, etc. (liste complète dans `PROJECT_CONTEXT.md`)
 
 ## Dépendances & dev
-- Venv : `.venv/` à la racine — toujours `poetry add`, jamais `pip install`
-- Tests en local : `.venv\Scripts\python.exe -m pytest project/tests/ -v`
-- torch/torchvision via source custom CPU (voir `pyproject.toml`)
+- Venv `.venv/` à la racine — `poetry add`, pas `pip install`
+- Tests : `.venv\Scripts\python.exe -m pytest project/tests/ -v`
+- torch/torchvision : source CPU `pytorch-src` dans `pyproject.toml`
 
-## Docker Compose
-6 services : `redis`, `minio` (9000/9001), `minio-init` (crée le bucket), `api` (5000), `worker`, `flower` (5555).
-Volume `minio_data` pour MinIO. Tout passe par S3Storage, plus de bind mount disque. Variables d'env via `.env`.
+## Docker Compose (8 services)
+`redis`, `minio` (9000/9001), `minio-init`, `api` (5000, `/metrics`), `worker` (8000 métriques), `flower` (5555), `prometheus` (9090), `grafana` (3000). Volumes `minio_data`, `grafana_data`. Tout le stockage applicatif via S3Storage → MinIO.
 
 ---
 

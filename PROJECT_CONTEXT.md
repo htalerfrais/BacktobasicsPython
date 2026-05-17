@@ -1,6 +1,8 @@
 # BacktobasicsPython — Contexte Projet (Agent AI)
 
 > Source de vérité complète. Version condensée dans `.cursor/rules/project-context.mdc` (auto-injectée).
+>
+> **Agents :** après tout changement notable (architecture, stack, roadmap semaines, conventions, monitoring, K8s), vérifier si `PROJECT_CONTEXT.md` doit être mis à jour ; si oui, le modifier puis **réaligner** `.cursor/rules/project-context.mdc` pour que le résumé injecté reste fidèle.
 
 ---
 
@@ -130,17 +132,18 @@ k8s/
 │   ├── app-env.yaml             # Variables non secrètes (Celery, MinIO endpoint, bucket)
 │   └── prometheus-config.yaml  # prometheus.yml (cibles api:5000 + worker:8000)
 ├── secrets/                     # GITIGNORE — ne jamais commiter
-│   └── minio.yaml               # MINIO_ROOT_USER / MINIO_ROOT_PASSWORD (voir secrets/README.md)
+│   └── minio.yaml               # MINIO_ROOT_USER / MINIO_ROOT_PASSWORD (local only ; cf. k8s/README.md)
 ├── redis/                       # Deployment + Service ClusterIP
 ├── minio/                       # PVC + Deployment + Service + Job init bucket
 ├── api/                         # Deployment (imagePullPolicy: Never) + Service NodePort 30500
-├── worker/                      # Deployment (concurrency=1) + Service ClusterIP 8000
+├── worker/                      # Deployment + Service ClusterIP 8000 + HPA (CPU)
 ├── flower/                      # Deployment + Service NodePort 30555
 ├── prometheus/                  # Deployment + Service NodePort 30900
 └── grafana/                     # PVC + ConfigMap provisioning + Deployment + Service NodePort 30300
 ```
 
 Commandes d'application (ordre) : voir `k8s/README.md`.
+Automatisation locale (PowerShell) : `k8s/start-stack.ps1`.
 
 NodePorts exposés depuis Minikube :
 
@@ -210,7 +213,7 @@ Fichier : `project/evaluation/run_experiment.py`
 - Bind mount `uploads/` supprimé — tout passe par MinIO
 - **S7 — Prometheus** : 6 métriques (HTTP auto + Celery + ML inference + ML confidence)
 - **S7 — Grafana** : dashboard provisionné automatiquement (`backtobasics.json`)
-- **S7 — Kubernetes** : manifests complets dans `k8s/` (namespace, configmaps, secrets, redis, minio, api, worker, flower, prometheus, grafana)
+- **S7 — Kubernetes** : manifests complets dans `k8s/` (namespace, configmaps, secrets, redis, minio, api, worker + HPA, flower, prometheus, grafana)
 
 ### Dette technique
 - `test_model.py` : script standalone non-pytest, à supprimer ou réécrire
@@ -238,5 +241,5 @@ Fichier : `project/evaluation/run_experiment.py`
 - Pas de commentaires évidents dans le code
 - Tests dans `project/tests/`
 - `.env` non commité : `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `MINIO_*`
-- `k8s/secrets/` non commité : credentials Kubernetes (voir `k8s/secrets/README.md`)
-- Gitignored : `data/`, `.venv/`, `mlruns/`, `project/evaluation/test_images/`, `mlflow.db`, `k8s/secrets/`
+- `k8s/secrets/` non commité : credentials dans `minio.yaml` local ; voir ordre de déploiement dans `k8s/README.md`
+- Gitignored : `data/`, `.venv/`, `mlruns/`, `project/evaluation/test_images/`, `mlflow.db`, `k8s/secrets/`, `project/tests/load/assets/`
