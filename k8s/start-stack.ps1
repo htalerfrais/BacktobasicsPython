@@ -35,12 +35,13 @@ function Wait-NodeMetrics {
     )
 
     for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
-        # kubectl top can fail briefly right after enabling metrics-server.
+        # "kubectl top" from host can fail with client/server version mismatch.
+        # Use "minikube kubectl" to run the version bundled with the cluster.
         # Keep retrying without stopping the whole script on transient errors.
         $previousErrorActionPreference = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
         try {
-            & kubectl top nodes 1>$null 2>$null
+            & minikube kubectl -- top nodes 1>$null 2>$null
         }
         finally {
             $ErrorActionPreference = $previousErrorActionPreference
@@ -54,7 +55,7 @@ function Wait-NodeMetrics {
         Start-Sleep -Seconds $DelaySeconds
     }
 
-    throw "kubectl top nodes indisponible apres plusieurs tentatives."
+    throw "minikube kubectl -- top nodes indisponible apres plusieurs tentatives."
 }
 
 function Start-UiTunnelTerminal {
@@ -135,7 +136,7 @@ try {
     }
 
     Invoke-Step -Message "Verification des metriques noeuds" -Command {
-        kubectl top nodes
+        minikube kubectl -- top nodes
     }
 
     Invoke-Step -Message "Connexion au daemon Docker de Minikube" -Command {
@@ -193,14 +194,16 @@ try {
     Write-Host "Flower     : http://$minikubeIp`:30555"
     Write-Host "Prometheus : http://$minikubeIp`:30900"
     Write-Host "Grafana    : http://$minikubeIp`:30300"
+    Write-Host "MinIO UI   : via terminal tunnel (service minio, port console 9001)"
 
     if ($OpenUiTunnels) {
         Write-Host ""
-        Write-Host "Ouverture des tunnels UI (api, flower, grafana)..." -ForegroundColor Cyan
+        Write-Host "Ouverture des tunnels UI (api, flower, grafana, minio)..." -ForegroundColor Cyan
         Start-UiTunnelTerminal -ServiceName "api" -ProfileName $MinikubeProfile -UrlSuffix "/docs"
         Start-UiTunnelTerminal -ServiceName "flower" -ProfileName $MinikubeProfile
         Start-UiTunnelTerminal -ServiceName "grafana" -ProfileName $MinikubeProfile
-        Write-Host "Trois terminaux ont ete lances. Garde-les ouverts pendant la demo." -ForegroundColor Yellow
+        Start-UiTunnelTerminal -ServiceName "minio" -ProfileName $MinikubeProfile
+        Write-Host "Quatre terminaux ont ete lances. Garde-les ouverts pendant la demo." -ForegroundColor Yellow
     }
 }
 finally {
