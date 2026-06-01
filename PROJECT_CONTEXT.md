@@ -21,7 +21,7 @@
 | API | FastAPI + Uvicorn |
 | ML | PyTorch (DeepLabV3 ResNet50, CPU) |
 | Async | Celery + Redis |
-| Monitoring | Prometheus + Grafana + Flower (dashboard Celery) |
+| Monitoring | Prometheus + Grafana (dashboard démo) + Flower (UI Celery) + kube-state-metrics (K8s) |
 | Métriques custom | `prometheus_client` (Histograms dans `infrastructure/metrics.py`) |
 | Containerisation | Docker + Docker Compose |
 | Orchestration | Kubernetes (Minikube en local) — manifests dans `k8s/` |
@@ -117,7 +117,36 @@ Définies dans `project/src/infrastructure/metrics.py` :
 | `ml_inference_duration_seconds` | Histogram | Worker | Durée forward pass DeepLabV3 uniquement |
 | `ml_mask_confidence` | Histogram | Worker | Confiance softmax moyenne sur pixels foreground |
 
-Dashboard Grafana : `monitoring/grafana/dashboards/backtobasics.json` (provisionné automatiquement).
+**Scrape Prometheus (Compose et K8s)** — `monitoring/prometheus.yml` (Compose) / `k8s/configmaps/prometheus-config.yaml` (K8s) :
+
+| Job | Cible | Rôle |
+|-----|-------|------|
+| `fastapi` | `api:5000` | HTTP auto (instrumentator) |
+| `celery-worker` | `worker:8000` | Métriques custom Celery + ML |
+| `kube-state-metrics` | `kube-state-metrics:8080` | État K8s (pods, HPA, deployments…) — **K8s uniquement** |
+| `kubernetes-cadvisor` | proxy API → `/metrics/cadvisor` | CPU/RAM pods (cAdvisor) — **K8s uniquement** |
+| `kubernetes-nodes` | proxy API → `/metrics` | Kubelet — scrapé, non affiché Grafana |
+
+**Limitation scrape worker (K8s)** : Prometheus cible le Service `worker:8000` (ClusterIP) → **un pod worker par scrape**, pas agrégation multi-replicas. Les panels K8s cAdvisor/HPA couvrent le scale-out.
+
+**Dashboard Grafana** : `monitoring/grafana/dashboards/backtobasics.json` (+ miroir dans `k8s/grafana/02-configmap-provisioning.yaml`).
+
+Panels **affichés** (9, orientés démo LinkedIn) :
+
+| Panel | Métriques |
+|-------|-----------|
+| HTTP — latence p50/p90/p99 | `http_request_duration_seconds_bucket` |
+| Celery — durée tâche p99 | `celery_task_duration_seconds_bucket` |
+| ML — inférence p50/p90/p99 | `ml_inference_duration_seconds_bucket` |
+| ML — confiance masque | `ml_mask_confidence_*` |
+| K8s — pods par phase | `kube_pod_status_phase` |
+| K8s — HPA worker | `kube_horizontalpodautoscaler_status_*` |
+| K8s — top CPU / mémoire pods | `container_cpu_usage_seconds_total`, `container_memory_working_set_bytes` |
+| K8s — CPU / mémoire cluster % | cAdvisor `id="/kubepods"` ÷ `kube_node_status_allocatable` |
+
+Toujours **scrapées** mais **retirées du dashboard** : débit HTTP (`http_requests_total`), compteur Celery (`celery_tasks_total`), deployments desired/available, endpoints services.
+
+**cAdvisor Minikube (K8s ≥1.38)** : label `container` souvent vide ; filtrer avec `pod!=""` (pas `container!=""`). Panel cluster % : utiliser `scalar(sum(...))` au dénominateur (sinon PromQL retourne vide).
 
 ---
 
@@ -129,23 +158,27 @@ Structure `k8s/` :
 k8s/
 ├── namespace.yaml
 ├── configmaps/
-│   ├── app-env.yaml             # Variables non secrètes (Celery, MinIO endpoint, bucket)
-│   └── prometheus-config.yaml  # prometheus.yml (cibles api:5000 + worker:8000)
-├── secrets/                     # GITIGNORE — ne jamais commiter
-│   └── minio.yaml               # MINIO_ROOT_USER / MINIO_ROOT_PASSWORD (local only ; cf. k8s/README.md)
-├── redis/                       # Deployment + Service ClusterIP
-├── minio/                       # PVC + Deployment + Service + Job init bucket
-├── api/                         # Deployment (imagePullPolicy: Never) + Service NodePort 30500
-├── worker/                      # Deployment + Service ClusterIP 8000 + HPA (CPU)
-├── flower/                      # Deployment + Service NodePort 30555
-├── prometheus/                  # Deployment + Service NodePort 30900
-└── grafana/                     # PVC + ConfigMap provisioning + Deployment + Service NodePort 30300
+│   ├── app-env.yaml              # Celery, MinIO (sans PROMETHEUS_MULTIPROC_DIR — worker only)
+│   └── prometheus-config.yaml   # 5 jobs scrape (cf. tableau ci-dessus)
+├── secrets/                      # GITIGNORE
+│   └── minio.yaml
+├── redis/
+├── minio/                        # PVC + Deployment + Service + Job init
+├── api/                          # NodePort 30500
+├── worker/                       # ClusterIP :8000 metrics, HPA 1→5 @ 60% CPU, PROMETHEUS_MULTIPROC_DIR
+├── kube-state-metrics/           # RBAC + Deployment + Service (image officielle k8s)
+├── flower/                       # NodePort 30555, enableServiceLinks: false
+├── prometheus/                   # RBAC nodes/proxy + SA, NodePort 30900
+├── grafana/                      # provisioning ConfigMap, anonymous Viewer, NodePort 30300
+└── start-stack.ps1               # Minikube + build + apply + tunnels UI
 ```
 
-Commandes d'application (ordre) : voir `k8s/README.md`.
-Automatisation locale (PowerShell) : `k8s/start-stack.ps1`.
+Commandes d'application (ordre) : `k8s/README.md`.
+Automatisation : `.\k8s\start-stack.ps1` (params `-MinikubeCpus`, `-MinikubeMemoryMb`).
 
-NodePorts exposés depuis Minikube :
+**Accès UI (Windows, driver Docker)** : les NodePorts (`192.168.49.x:30xxx`) ne sont en général **pas** joignables depuis le navigateur hôte → utiliser **`minikube service <svc> -n backtobasics --url`** (tunnels `127.0.0.1:xxxxx`, terminaux à garder ouverts). Le script ouvre api/docs, flower, grafana, minio console.
+
+NodePorts (référence) :
 
 | Service | NodePort |
 |---------|----------|
@@ -153,6 +186,10 @@ NodePorts exposés depuis Minikube :
 | flower | 30555 |
 | prometheus | 30900 |
 | grafana | 30300 |
+
+**HPA worker** (`k8s/worker/03-hpa.yaml`) : `minReplicas: 1`, `maxReplicas: 5`, CPU 60%, scale-down lent (300s stabilization).
+
+**Ressources Minikube** : `--cpus` / `--memory` au `minikube start` (défaut script : 4 CPU / 7168 Mo). Modifier nécessite `minikube delete` puis recréation.
 
 ---
 
@@ -211,14 +248,17 @@ Fichier : `project/evaluation/run_experiment.py`
 - `FileService` refactorisé comme façade sur `StoragePort`
 - `ImageMetadata.path` → `object_key`
 - Bind mount `uploads/` supprimé — tout passe par MinIO
-- **S7 — Prometheus** : 6 métriques (HTTP auto + Celery + ML inference + ML confidence)
-- **S7 — Grafana** : dashboard provisionné automatiquement (`backtobasics.json`)
-- **S7 — Kubernetes** : manifests complets dans `k8s/` (namespace, configmaps, secrets, redis, minio, api, worker + HPA, flower, prometheus, grafana)
+- **S7 — Prometheus** : métriques app (HTTP auto + Celery + ML) ; scrape K8s (kube-state-metrics, cAdvisor, kubelet)
+- **S7 — Grafana** : dashboard `backtobasics.json` — **9 panels démo** (app + K8s/HPA/ressources)
+- **S7 — Kubernetes** : manifests `k8s/` (kube-state-metrics, prometheus RBAC, HPA worker, script `start-stack.ps1`)
+- **S7 — Locust** : images COCO dans `project/tests/load/assets/coco_samples/` (gitignored)
 
 ### Dette technique
 - `test_model.py` : script standalone non-pytest, à supprimer ou réécrire
 - `main.py` ne configure pas le logging Uvicorn/FastAPI globalement
 - Pas de tests d'intégration MinIO (à faire avec `testcontainers` ou manuellement)
+- Scrape worker K8s : un replica à la fois via Service (pas pod SD)
+- Worker OOM possible sous Locust + HPA max sur nœud Minikube limité en RAM
 - K8s non testé en conditions réelles (Minikube local uniquement)
 
 ---

@@ -4,9 +4,10 @@ Ce dossier contient les manifests Kubernetes du projet `backtobasics`.
 
 ## Arborescence
 
-- Un dossier par composant (`redis/`, `minio/`, `api/`, `worker/`, `flower/`, `prometheus/`, `grafana/`).
+- Un dossier par composant (`redis/`, `minio/`, `api/`, `worker/`, `flower/`, `prometheus/`, `grafana/`, `kube-state-metrics/`).
 - Fichiers séparés (`deployment`, `service`, `pvc`, `job`, `hpa`) pour faciliter la revue et les `kubectl apply -f <dossier>/`.
 - Préfixes `01-`, `02-`, `03-`... pour expliciter l'ordre d'application.
+- `start-stack.ps1` : automatisation Minikube + build + apply + tunnels UI.
 
 ---
 
@@ -35,11 +36,12 @@ Script PowerShell (automatisation du démarrage + déploiement complet) :
 ```
 
 Le script :
-- démarre Minikube seulement s'il n'est pas déjà `Running`
-- active `metrics-server`
+- démarre Minikube seulement s'il n'est pas déjà `Running` (défaut : 4 CPU / 7168 Mo — params `-MinikubeCpus`, `-MinikubeMemoryMb`)
+- active `metrics-server` et attend `minikube kubectl -- top nodes`
 - build `backtobasics:latest` dans le daemon Docker de Minikube
 - applique les manifests dans l'ordre ci-dessous
 - attend les rollouts principaux
+- ouvre des tunnels UI (api/docs, flower, grafana, minio console) via `minikube service --url`
 
 ---
 
@@ -102,25 +104,28 @@ kubectl -n backtobasics get events --sort-by=.metadata.creationTimestamp
 kubectl -n backtobasics get hpa
 ```
 
-Vérifier les cibles Prometheus:
+Vérifier les cibles Prometheus :
 
-```bash
-minikube service prometheus -n backtobasics
-# puis dans Prometheus > Status > Targets:
-# - fastapi UP
-# - celery-worker UP
-# - kube-state-metrics UP
-# - kubernetes-nodes UP
-# - kubernetes-cadvisor UP
+```powershell
+minikube service prometheus -n backtobasics --url -p minikube
+# Prometheus > Status > Targets — attendu UP :
+# - fastapi
+# - celery-worker
+# - kube-state-metrics
+# - kubernetes-nodes
+# - kubernetes-cadvisor
 ```
 
-Vérifier les panels Grafana:
+Vérifier le dashboard Grafana :
 
-```bash
-minikube service grafana -n backtobasics
-# dashboard "Backtobasics — Métriques":
-# section K8s non vide (pods, deployments, endpoints, HPA, CPU/mémoire)
+```powershell
+minikube service grafana -n backtobasics --url -p minikube
+# Dashboard "Backtobasics — Métriques" (9 panels) :
+# - HTTP latence, Celery p99, ML inférence + confiance
+# - K8s : pods par phase, HPA worker, top CPU/mémoire, charge cluster %
 ```
+
+**cAdvisor (Minikube K8s ≥1.38)** : le label `container` est souvent vide ; les panels K8s CPU/mémoire filtrent sur `pod!=""`. Si le panel cluster % est vide, vérifier que la requête utilise `scalar(sum(...))` au dénominateur (cf. `monitoring/grafana/dashboards/backtobasics.json`).
 
 Tester les métriques worker :
 
@@ -132,18 +137,28 @@ curl http://localhost:8000/metrics
 
 ---
 
-## Accès UI (NodePort)
+## Accès UI
 
-- API : `http://<minikube-ip>:30500` (ou `minikube service api -n backtobasics`)
-- Flower : `http://<minikube-ip>:30555`
-- Prometheus : `http://<minikube-ip>:30900`
-- Grafana : `http://<minikube-ip>:30300`
+**Recommandé (Windows, driver Docker)** — tunnels vers localhost :
 
-Astuce : Minikube peut ouvrir l'URL automatiquement :
-
-```bash
-minikube service api -n backtobasics
-minikube service flower -n backtobasics
-minikube service prometheus -n backtobasics
-minikube service grafana -n backtobasics
+```powershell
+minikube service api -n backtobasics --url -p minikube        # ajouter /docs pour Swagger
+minikube service flower -n backtobasics --url -p minikube
+minikube service prometheus -n backtobasics --url -p minikube
+minikube service grafana -n backtobasics --url -p minikube
+# MinIO console : 2e URL du tunnel (port 9001), login = k8s/secrets/minio.yaml
+minikube service minio -n backtobasics --url -p minikube
 ```
+
+Grafana : auth anonyme activée (Viewer) — pas de login en démo.
+
+**NodePorts (référence)** — souvent **non** joignables depuis le navigateur hôte sous Docker :
+
+| Service | NodePort |
+|---------|----------|
+| api | 30500 |
+| flower | 30555 |
+| prometheus | 30900 |
+| grafana | 30300 |
+
+`minikube ip` + NodePort peut fonctionner avec d'autres drivers (ex. hyperkit, linux natif).

@@ -16,7 +16,7 @@ Background removal as a service : upload image → Celery worker → PyTorch (De
 - En fin de tâche, si tu as introduit un écart doc/code sans le corriger, **signale-le** ou applique le patch minimal sur les deux fichiers.
 
 ## Stack
-FastAPI + Uvicorn | `prometheus-fastapi-instrumentator` + métriques custom (`infrastructure/metrics.py`) | PyTorch DeepLabV3 (CPU) | Celery + Redis | MinIO (S3 via boto3) | Docker Compose **8 services** | Kubernetes manifests `k8s/` (Minikube local, **HPA worker** CPU) + script PowerShell `k8s/start-stack.ps1` | Prometheus + Grafana (`monitoring/`) + Flower | Poetry | Pytest | Locust | MLflow (dev) | CI GitHub Actions
+FastAPI + Uvicorn | `prometheus-fastapi-instrumentator` + métriques custom (`infrastructure/metrics.py`) | PyTorch DeepLabV3 (CPU) | Celery + Redis | MinIO (S3 via boto3) | Docker Compose **8 services** | Kubernetes `k8s/` (Minikube, **HPA worker** 1→5, **kube-state-metrics**, cAdvisor scrape) + `k8s/start-stack.ps1` | Prometheus + Grafana (**9 panels démo**) + Flower | Poetry | Pytest | Locust | MLflow (dev) | CI GitHub Actions
 
 ## Architecture hexagonale
 ```
@@ -39,9 +39,12 @@ project/src/
 `GET /images/process/{task_id}` → AsyncResult → métadonnées / erreur selon statut
 
 ## État actuel — fin Semaine 7 ✅
-- S1–S7 : hexagone, ML, Celery, Docker, tests, Ruff, MLflow, CI, MinIO, **Prometheus + Grafana**, **manifests K8s** (worker + **HPA**), Locust
+- S1–S7 : hexagone, ML, Celery, Docker, tests, Ruff, MLflow, CI, MinIO, **Prometheus + Grafana (9 panels démo)**, **K8s** (HPA, kube-state-metrics, cAdvisor, `start-stack.ps1`), Locust + assets COCO
 - `StoragePort` / `S3Storage`, pas de bind mount `uploads/`
 - Tests API mockés (`dependency_overrides`)
+- **Minikube Windows** : UI via `minikube service --url` (tunnels), pas NodePort direct
+- **Grafana K8s** : filtrer cAdvisor avec `pod!=""` ; cluster % avec `scalar(sum(...))`
+- **PROMETHEUS_MULTIPROC_DIR** : env worker uniquement (pas ConfigMap global)
 
 ## Roadmap restante
 - **S8** : Frontend React (upload → polling → résultat MinIO, Tailwind)
@@ -57,7 +60,10 @@ project/src/
 - torch/torchvision : source CPU `pytorch-src` dans `pyproject.toml`
 
 ## Docker Compose (8 services)
-`redis`, `minio` (9000/9001), `minio-init`, `api` (5000, `/metrics`), `worker` (8000 métriques), `flower` (5555), `prometheus` (9090), `grafana` (3000). Volumes `minio_data`, `grafana_data`. Tout le stockage applicatif via S3Storage → MinIO.
+`redis`, `minio` (9000/9001), `minio-init`, `api` (5000, `/metrics`), `worker` (8000 métriques), `flower` (5555), `prometheus` (9090), `grafana` (3000). Volumes `minio_data`, `grafana_data`. Dashboard : `monitoring/grafana/dashboards/backtobasics.json` (9 panels ; détail scrape/panels dans `PROJECT_CONTEXT.md`).
+
+## K8s (condensé)
+Namespace `backtobasics` : redis, minio, api, worker (+ HPA), flower, prometheus, grafana, **kube-state-metrics**. Prometheus scrape : app + kube-state-metrics + cAdvisor. Grafana provisionné via ConfigMap `k8s/grafana/02-configmap-provisioning.yaml`.
 
 ---
 

@@ -40,7 +40,7 @@ data:
   backtobasics.json: |
     {
       "annotations": { "list": [] },
-      "description": "HTTP (instrumentator), Celery, ML — BacktobasicsPython",
+      "description": "HTTP latence, Celery, ML, K8s — BacktobasicsPython (démo)",
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 1,
@@ -50,32 +50,8 @@ data:
       "panels": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 1 }, "unit": "reqps" }, "overrides": [] },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 }, "id": 1,
-          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
-          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(rate(http_requests_total[5m]))", "legendFormat": "req/s", "refId": "A" }],
-          "title": "HTTP — débit total", "type": "timeseries"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "reqps" }, "overrides": [] },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 }, "id": 2,
-          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
-          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum by (status) (rate(http_requests_total[5m]))", "legendFormat": "{{status}}", "refId": "A" }],
-          "title": "HTTP — débit par statut (2xx, 4xx, …)", "type": "timeseries"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "reqps" }, "overrides": [] },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 }, "id": 3,
-          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
-          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum by (handler) (rate(http_requests_total[5m]))", "legendFormat": "{{handler}}", "refId": "A" }],
-          "title": "HTTP — débit par handler", "type": "timeseries"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "s" }, "overrides": [] },
-          "gridPos": { "h": 9, "w": 24, "x": 0, "y": 8 }, "id": 4,
+          "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 }, "id": 4,
           "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
           "targets": [
             { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "histogram_quantile(0.5, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))", "legendFormat": "p50", "refId": "A" },
@@ -86,16 +62,8 @@ data:
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }, "overrides": [] },
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 }, "id": 5,
-          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
-          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum by (status) (increase(celery_tasks_total[5m]))", "legendFormat": "{{status}}", "refId": "A" }],
-          "title": "Celery — tâches terminées (par fenêtre 5 min, compteur)", "type": "timeseries"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "s" }, "overrides": [] },
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 }, "id": 6,
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 }, "id": 6,
           "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
           "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "histogram_quantile(0.99, sum by (le) (increase(celery_task_duration_seconds_bucket[15m])))", "legendFormat": "p99 (distrib. 15m)", "refId": "A" }],
           "title": "Celery — durée tâche p99 (process_image_task, 15m)", "type": "timeseries"
@@ -103,7 +71,7 @@ data:
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "s" }, "overrides": [] },
-          "gridPos": { "h": 9, "w": 24, "x": 0, "y": 25 }, "id": 7,
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 }, "id": 7,
           "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
           "targets": [
             { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "histogram_quantile(0.5, sum by (le) (increase(ml_inference_duration_seconds_bucket[15m])))", "legendFormat": "p50 (distrib. 15m)", "refId": "A" },
@@ -115,7 +83,7 @@ data:
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "max": 1, "min": 0, "unit": "percentunit" }, "overrides": [] },
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 34 }, "id": 8,
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 }, "id": 8,
           "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
           "targets": [
             { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(increase(ml_mask_confidence_sum[15m])) / sum(increase(ml_mask_confidence_count[15m]))", "legendFormat": "moyenne (échantillons 15m)", "refId": "A" },
@@ -126,7 +94,7 @@ data:
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }, "overrides": [] },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 42 }, "id": 9,
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 25 }, "id": 9,
           "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true } },
           "targets": [
             { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum by (phase) (kube_pod_status_phase{namespace=\"backtobasics\",phase=~\"Running|Pending|Failed\"} == 1)", "legendFormat": "{{phase}}", "refId": "A" }
@@ -136,29 +104,7 @@ data:
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }, "overrides": [] },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 42 }, "id": 10,
-          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
-          "targets": [
-            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "kube_deployment_spec_replicas{namespace=\"backtobasics\"}", "legendFormat": "{{deployment}} desired", "refId": "A" },
-            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "kube_deployment_status_replicas_available{namespace=\"backtobasics\"}", "legendFormat": "{{deployment}} available", "refId": "B" }
-          ],
-          "title": "K8s — déploiements (desired vs available)", "type": "timeseries"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }, "overrides": [] },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 42 }, "id": 11,
-          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
-          "targets": [
-            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum by (service) (kube_endpoint_address_available{namespace=\"backtobasics\"})", "legendFormat": "{{service}} ready", "refId": "A" },
-            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum by (service) (kube_endpoint_address_not_ready{namespace=\"backtobasics\"})", "legendFormat": "{{service}} not_ready", "refId": "B" }
-          ],
-          "title": "K8s — endpoints services", "type": "timeseries"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }, "overrides": [] },
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 50 }, "id": 12,
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 25 }, "id": 12,
           "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
           "targets": [
             { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"backtobasics\",horizontalpodautoscaler=\"worker\"}", "legendFormat": "current", "refId": "A" },
@@ -169,7 +115,7 @@ data:
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "cores" }, "overrides": [] },
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 50 }, "id": 13,
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 33 }, "id": 13,
           "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true } },
           "targets": [
             { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "topk(10, sum by (pod) (rate(container_cpu_usage_seconds_total{job=\"kubernetes-cadvisor\",namespace=\"backtobasics\",pod!=\"\"}[5m])))", "legendFormat": "{{pod}}", "refId": "A" }
@@ -179,7 +125,7 @@ data:
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "bytes" }, "overrides": [] },
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 58 }, "id": 14,
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 33 }, "id": 14,
           "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true } },
           "targets": [
             { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "topk(10, sum by (pod) (container_memory_working_set_bytes{job=\"kubernetes-cadvisor\",namespace=\"backtobasics\",pod!=\"\"}))", "legendFormat": "{{pod}}", "refId": "A" }
@@ -189,7 +135,7 @@ data:
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "max": 100, "min": 0, "unit": "percent" }, "overrides": [] },
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 58 }, "id": 15,
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 41 }, "id": 15,
           "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
           "targets": [
             { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "100 * rate(container_cpu_usage_seconds_total{job=\"kubernetes-cadvisor\",id=\"/kubepods\"}[5m]) / scalar(sum(kube_node_status_allocatable{resource=\"cpu\"}))", "legendFormat": "CPU cluster usage %", "refId": "A" },
@@ -208,6 +154,6 @@ data:
       "timezone": "browser",
       "title": "Backtobasics — Métriques",
       "uid": "backtobasics-metrics",
-      "version": 3,
+      "version": 4,
       "weekStart": ""
     }
