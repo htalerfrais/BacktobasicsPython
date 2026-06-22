@@ -5,18 +5,17 @@ alwaysApply: true
 
 # BacktobasicsPython — Contexte Agent
 
+## Directive agents — documentation
+
+**Source de vérité :** `PROJECT_CONTEXT.md` (complet) ; ce `.mdc` n'en est que le condensé.  
+Après un changement notable (archi, stack, K8s, monitoring, conventions), **mettre à jour `PROJECT_CONTEXT.md` si nécessaire**, puis réaligner ce fichier.
+
 ## Projet
 Background removal as a service : upload image → Celery worker → PyTorch (DeepLabV3) → RGBA PNG sans fond.
 **Objectif dual : apprendre ET construire un MVP présentable.**
-**Source de vérité :** `PROJECT_CONTEXT.md` à la racine. Ce fichier est la **version condensée** ; tout détail (métriques, K8s, tableaux) vit dans `PROJECT_CONTEXT.md`.
-
-## Maintenance documentation (agents)
-- Après un changement **notable** (architecture, stack, semaines roadmap S*, conventions, monitoring, manifests K8s, Docker Compose, gitignore projet) : **vérifier** si `PROJECT_CONTEXT.md` doit être mis à jour.
-- Si `PROJECT_CONTEXT.md` change (ou devrait changer) pour rester vrai : **mettre à jour** ce fichier, puis **réaligner** `.cursor/rules/project-context.mdc` pour que le condensé reflète la même réalité (pas de dérive S6/S7, nombre de services, roadmap).
-- En fin de tâche, si tu as introduit un écart doc/code sans le corriger, **signale-le** ou applique le patch minimal sur les deux fichiers.
 
 ## Stack
-FastAPI + Uvicorn | `prometheus-fastapi-instrumentator` + métriques custom (`infrastructure/metrics.py`) | PyTorch DeepLabV3 (CPU) | Celery + Redis | MinIO (S3 via boto3) | Docker Compose **8 services** | Kubernetes `k8s/` (Minikube, **HPA worker** 1→5, **kube-state-metrics**, cAdvisor scrape) + `k8s/start-stack.ps1` | Prometheus + Grafana (**9 panels démo**) + Flower | Poetry | Pytest | Locust | MLflow (dev) | CI GitHub Actions
+FastAPI + Uvicorn | `prometheus-fastapi-instrumentator` + métriques custom (`infrastructure/metrics.py`) | PyTorch DeepLabV3 (CPU) | Celery + Redis | MinIO (S3 via boto3) | Docker Compose **8 services** | Kubernetes `k8s/` (Minikube, **HPA worker** 1→3, **kube-state-metrics**, cAdvisor scrape) + `k8s/start-stack.ps1` | Prometheus + Grafana (**9 panels démo**) + Flower | Poetry | Pytest | Locust | MLflow (dev) | CI GitHub Actions
 
 ## Architecture hexagonale
 ```

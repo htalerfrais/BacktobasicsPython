@@ -82,7 +82,7 @@ Le HPA est défini dans `k8s/worker/03-hpa.yaml` :
 
 - cible : `Deployment/worker`
 - CPU target : `60%`
-- bornes : `minReplicas: 1`, `maxReplicas: 5`
+- bornes : `minReplicas: 1`, `maxReplicas: 3`
 - `behavior` : scale-down ralenti pour éviter l'effet yoyo en démo
 
 Vérification HPA :

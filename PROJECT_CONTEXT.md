@@ -165,7 +165,7 @@ k8s/
 ├── redis/
 ├── minio/                        # PVC + Deployment + Service + Job init
 ├── api/                          # NodePort 30500
-├── worker/                       # ClusterIP :8000 metrics, HPA 1→5 @ 60% CPU, PROMETHEUS_MULTIPROC_DIR
+├── worker/                       # ClusterIP :8000 metrics, HPA 1→3 @ 60% CPU, PROMETHEUS_MULTIPROC_DIR
 ├── kube-state-metrics/           # RBAC + Deployment + Service (image officielle k8s)
 ├── flower/                       # NodePort 30555, enableServiceLinks: false
 ├── prometheus/                   # RBAC nodes/proxy + SA, NodePort 30900
@@ -187,7 +187,7 @@ NodePorts (référence) :
 | prometheus | 30900 |
 | grafana | 30300 |
 
-**HPA worker** (`k8s/worker/03-hpa.yaml`) : `minReplicas: 1`, `maxReplicas: 5`, CPU 60%, scale-down lent (300s stabilization).
+**HPA worker** (`k8s/worker/03-hpa.yaml`) : `minReplicas: 1`, `maxReplicas: 3`, CPU 60%, scale-down lent (300s stabilization).
 
 **Ressources Minikube** : `--cpus` / `--memory` au `minikube start` (défaut script : 4 CPU / 7168 Mo). Modifier nécessite `minikube delete` puis recréation.
 

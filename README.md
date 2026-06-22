@@ -59,6 +59,30 @@ UI Locust : [http://localhost:8089](http://localhost:8089)
 
 Détails K8s : [k8s/README.md](k8s/README.md).
 
-## Dev local sans Docker
+## Adapter le scale selon le cas d'usage ML
 
-Voir [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) (Python 3.12, Poetry, `PYTHONPATH=project`).
+On dimensionne d'abord le **budget global** du cluster (CPU/RAM du nœud Minikube), puis on règle la **taille d'un worker** pour qu'il exécute une tâche ML de façon fiable. Tant que chaque pod reste dans ce cadre, on augmente le **débit** en ajoutant des workers (scale horizontal via HPA). En résumé : **worker plus gros = tâches plus lourdes** ; **plus de workers = plus de parallélisme**, dans la limite de ce que le nœud peut absorber.
+
+### Configuration actuelle
+
+Cas d'usage : **DeepLabV3 CPU**, images type COCO, traitement async Celery.
+
+| Levier | Valeur | Fichier |
+|--------|--------|---------|
+| Nœud Minikube | 4 CPU / 7168 Mo | `k8s/start-stack.ps1` |
+| Worker / pod | `concurrency=1`, request `500m`/`1Gi`, limit `2Gi` | `k8s/worker/01-deployment.yaml` |
+| HPA worker | `min=1`, `max=3`, CPU `60%` | `k8s/worker/03-hpa.yaml` |
+| API | 1 replica, request `100m`/`256Mi` | `k8s/api/01-deployment.yaml` |
+
+`maxReplicas: 3` sur un nœud ~7 Go : compromis démo (scale visible sans saturer la RAM du cluster).
+
+### Que régler selon le besoin
+
+| Besoin | Action | Type de scale |
+|--------|--------|---------------|
+| Plus de débit (plus d'images en parallèle) | `maxReplicas` / `minReplicas` (HPA) | Horizontal |
+| Tâche ML plus lourde (modèle, résolution, RAM) | `resources` du worker | Vertical (pod) |
+| Cluster trop petit (plafond global) | `--cpus` / `--memory` Minikube | Vertical (nœud) |
+| HPA réagit trop tard / trop tôt | `averageUtilization` | Réglage HPA |
+
+Sous charge : HPA (`current/desired`), top CPU/mémoire worker, cluster % dans Grafana.
