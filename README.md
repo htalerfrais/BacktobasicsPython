@@ -71,7 +71,7 @@ Cas d'usage : **DeepLabV3 CPU**, images type COCO, traitement async Celery.
 |--------|--------|---------|
 | Nœud Minikube | 4 CPU / 7168 Mo | `k8s/start-stack.ps1` |
 | Worker / pod | `concurrency=1`, request `500m`/`1Gi`, limit `2Gi` | `k8s/worker/01-deployment.yaml` |
-| HPA worker | `min=1`, `max=3`, CPU `60%` | `k8s/worker/03-hpa.yaml` |
+| HPA worker | `min=1`, `max=3`, CPU `75%`, scale-up +1 pod/min (après 60s) | `k8s/worker/03-hpa.yaml` |
 | API | 1 replica, request `100m`/`256Mi` | `k8s/api/01-deployment.yaml` |
 
 `maxReplicas: 3` sur un nœud ~7 Go : compromis démo (scale visible sans saturer la RAM du cluster).

@@ -81,9 +81,10 @@ kubectl -n backtobasics rollout status deployment/grafana
 Le HPA est défini dans `k8s/worker/03-hpa.yaml` :
 
 - cible : `Deployment/worker`
-- CPU target : `60%`
+- CPU target : `75%`
 - bornes : `minReplicas: 1`, `maxReplicas: 3`
-- `behavior` : scale-down ralenti pour éviter l'effet yoyo en démo
+- scale-up : +1 pod max / 60s, après **60s** de CPU élevée (`stabilizationWindowSeconds`)
+- scale-down : ralenti (300s stabilization) pour éviter l'effet yoyo en démo
 
 Vérification HPA :
 

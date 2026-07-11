@@ -19,15 +19,16 @@ spec:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 60
-  # Limite le yoyo en démo: scale-up réactif, scale-down progressif.
+          averageUtilization: 75
+  # Démo: scale-up seulement si CPU élevée ~1 min ; +1 pod/min max. Scale-down lent.
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 0
+      stabilizationWindowSeconds: 60
       policies:
-        - type: Percent
-          value: 100
-          periodSeconds: 15
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+      selectPolicy: Max
     scaleDown:
       stabilizationWindowSeconds: 300
       policies:
