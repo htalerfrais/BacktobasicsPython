@@ -1,5 +1,7 @@
 # Kubernetes (Minikube)
 
+> **Quick start (English):** see the main [README.md](../README.md#quick-start-kubernetes--minikube) — copy `k8s/secrets/minio.yaml.example`, run `.\k8s\start-stack.ps1`, use tunnel URLs on Windows.
+
 Ce dossier contient les manifests Kubernetes du projet `backtobasics`.
 
 ## Arborescence
@@ -51,7 +53,8 @@ Le script :
 kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/configmaps/
 
-# Secret MinIO : source de vérité = k8s/secrets/minio.yaml (gitignoré). Éditer puis ré-appliquer pour mettre à jour.
+# Secret MinIO : copier l'exemple puis éditer si besoin (fichier gitignoré).
+Copy-Item k8s\secrets\minio.yaml.example k8s\secrets\minio.yaml
 kubectl apply -f k8s/secrets/minio.yaml
 
 kubectl apply -f k8s/redis/

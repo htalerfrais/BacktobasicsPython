@@ -13,6 +13,7 @@ Après un changement notable (archi, stack, K8s, monitoring, conventions), **met
 ## Projet
 Background removal as a service : upload image → Celery worker → PyTorch (DeepLabV3) → RGBA PNG sans fond.
 **Objectif dual : apprendre ET construire un MVP présentable.**
+**Vitrine publique :** `README.md` (anglais, GIFs démo, quick start).
 
 ## Stack
 FastAPI + Uvicorn | `prometheus-fastapi-instrumentator` + métriques custom (`infrastructure/metrics.py`) | PyTorch DeepLabV3 (CPU) | Celery + Redis | MinIO (S3 via boto3) | Docker Compose **8 services** | Kubernetes `k8s/` (Minikube, **HPA worker** 1→3, **kube-state-metrics**, cAdvisor scrape) + `k8s/start-stack.ps1` | Prometheus + Grafana (**9 panels démo**) + Flower | Poetry | Pytest | Locust | MLflow (dev) | CI GitHub Actions
@@ -50,7 +51,7 @@ project/src/
 
 ## Conventions
 - Python 3.12, Pydantic v2, Poetry ; tests dans `project/tests/`
-- `.env` non commité : voir `.env.example` ; `k8s/secrets/` non commité — cf. `k8s/README.md`
+- `.env` non commité : voir `.env.example` ; `k8s/secrets/` non commité — copier `k8s/secrets/minio.yaml.example` ; cf. `k8s/README.md`
 - Gitignored notables : `project/tests/load/assets/`, etc. (liste complète dans `PROJECT_CONTEXT.md`)
 
 ## Dépendances & dev

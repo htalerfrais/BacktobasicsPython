@@ -12,8 +12,8 @@ project/evaluation/mlruns/
 mlflow.db
 project/evaluation/test_images/
 
-# kubernetes
-k8s/secrets/
+# kubernetes — ignore local credentials, keep the example template
+k8s/secrets/minio.yaml
 
 # locust load-test image assets (COCO samples)
 project/tests/load/assets/

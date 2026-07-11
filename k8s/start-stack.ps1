@@ -150,7 +150,14 @@ try {
     }
 
     if (-not (Test-Path -Path $secretFile)) {
-        throw "Secret introuvable: '$secretFile'. Cree ce fichier local avant de deployer."
+        $exampleFile = Join-Path $repoRoot "k8s\secrets\minio.yaml.example"
+        if (Test-Path -Path $exampleFile) {
+            Write-Host "Secret absent: copie depuis minio.yaml.example" -ForegroundColor Yellow
+            Copy-Item -Path $exampleFile -Destination $secretFile
+        }
+        else {
+            throw "Secret introuvable: '$secretFile'. Cree ce fichier local avant de deployer."
+        }
     }
 
     $applyOrder = @(

@@ -1,5 +1,7 @@
 # BacktobasicsPython — Contexte Projet (Agent AI)
 
+> **Public overview:** [README.md](README.md) (English, demos, quick start).
+>
 > Source de vérité complète. Version condensée dans `.cursor/rules/project-context.mdc` (auto-injectée).
 >
 > **Agents :** après tout changement notable (architecture, stack, roadmap semaines, conventions, monitoring, K8s), vérifier si `PROJECT_CONTEXT.md` doit être mis à jour ; si oui, le modifier puis **réaligner** `.cursor/rules/project-context.mdc` pour que le résumé injecté reste fidèle.
@@ -281,5 +283,5 @@ Fichier : `project/evaluation/run_experiment.py`
 - Pas de commentaires évidents dans le code
 - Tests dans `project/tests/`
 - `.env` non commité : `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `MINIO_*`
-- `k8s/secrets/` non commité : credentials dans `minio.yaml` local ; voir ordre de déploiement dans `k8s/README.md`
-- Gitignored : `data/`, `.venv/`, `mlruns/`, `project/evaluation/test_images/`, `mlflow.db`, `k8s/secrets/`, `project/tests/load/assets/`
+- `k8s/secrets/minio.yaml` non commité — copier `k8s/secrets/minio.yaml.example` ; voir `k8s/README.md`
+- Gitignored : `data/`, `.venv/`, `mlruns/`, `project/evaluation/test_images/`, `mlflow.db`, `k8s/secrets/minio.yaml`, `project/tests/load/assets/`
